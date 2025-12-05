@@ -27,6 +27,7 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: white;
             z-index: 10;
+            transition: all 0.5s ease; /* 用于平滑过渡 */
         }
 
         h2 { margin: 0 0 15px 0; font-size: 1.2rem; font-weight: 300; letter-spacing: 1px; }
@@ -83,11 +84,12 @@
             z-index: 5;
         }
         
-        #fullscreen-btn {
+        /* 全屏按钮和UI切换按钮 */
+        #fullscreen-btn, #toggle-ui-btn {
             position: absolute;
             top: 20px;
             right: 20px;
-            background: none;
+            background: rgba(0,0,0,0.5);
             border: 1px solid rgba(255,255,255,0.3);
             color: white;
             width: 40px;
@@ -99,7 +101,11 @@
             align-items: center;
             justify-content: center;
         }
-
+        
+        #toggle-ui-btn {
+            right: 70px; /* 放在全屏按钮旁边 */
+        }
+        
         /* 【信息面板样式】 */
         #info-panel {
             position: absolute;
@@ -112,7 +118,9 @@
             border-radius: 10px;
             color: #fff;
             z-index: 10;
+            transition: all 0.5s ease; /* 用于平滑过渡 */
         }
+
         #info-panel h3 { 
             color: #f9d71c; 
             border-bottom: 1px solid #444; 
@@ -140,6 +148,8 @@
                 width: calc(100% - 20px);
                 margin-bottom: 10px;
             }
+            #fullscreen-btn { top: 10px; right: 10px; }
+            #toggle-ui-btn { top: 10px; right: 60px; }
         }
         
     </style>
@@ -160,7 +170,7 @@
         </div>
 
         <div class="control-group" id="color-control-group">
-            <label>粒子颜色</label>
+            <label>星云颜色</label>
             <input type="color" id="color-picker" value="#ffffff">
         </div>
         
@@ -181,8 +191,7 @@
 
     <div id="status">正在初始化摄像头与AI模型...</div>
     <button id="fullscreen-btn" onclick="toggleFullScreen()">⛶</button>
-
-    <script>
+    <button id="toggle-ui-btn" onclick="toggleUI()">✖</button> <script>
         // ================= 配置数据 (包含轨道信息) =================
         const planets = [
             // 太阳 (Sun) - 焦点，不公转
@@ -259,12 +268,11 @@
         // 核心状态变量
         let currentMode = 'overview'; // 'overview' 或 'focus'
         let particleSystem = null; // 主粒子系统
-        let celestialBodies = []; // 存储行星数据 (非 Three.js 对象)
         let particleData = []; // 存储所有粒子的原始位置和类型
         let currentFocusPlanet = planets[0]; // 默认太阳
         let particleColor = planets[0].color; // 粒子颜色状态
         
-        const MAIN_PARTICLE_COUNT = 20000; // 整个太阳系的粒子总数
+        const MAIN_PARTICLE_COUNT = 80000; // 粒子总数大幅增加，提升精致度
 
         // --- 场景清理和模式切换函数 ---
         function clearScene() {
@@ -288,103 +296,92 @@
             const colors = new Float32Array(MAIN_PARTICLE_COUNT * 3);
             
             let particleIndex = 0;
-            celestialBodies = []; // 清空行星 Three.js 引用
+            const tempParticles = []; // 临时存储，用于计算总数
 
             // 粒子生成循环
             planets.forEach(p => {
                 const planetColor = new THREE.Color(p.color);
                 
-                // 1. 创建行星主体粒子 (少量大粒子，确保主体可见)
-                const bodyParticles = p.name === 'Sun' ? 50 : 20; 
+                // 1. 创建行星主体粒子 (确保主体可见)
+                const bodyParticles = p.name === 'Sun' ? 2000 : 500; 
                 for (let i = 0; i < bodyParticles; i++) {
-                    const r = p.size * (1 + Math.random() * 0.5); 
+                    // **优化点：使用球体内的随机点，而不是表面，形成饱满的球体**
+                    const r_rand = Math.cbrt(Math.random()) * p.size; // 使得分布更均匀
                     const theta = Math.random() * Math.PI * 2;
                     const phi = Math.acos((Math.random() * 2) - 1);
                     
-                    // 粒子在球体表面随机分布
-                    const x = r * Math.sin(phi) * Math.cos(theta);
-                    const y = r * Math.sin(phi) * Math.sin(theta);
-                    const z = r * Math.cos(phi);
+                    const x = r_rand * Math.sin(phi) * Math.cos(theta);
+                    const y = r_rand * Math.sin(phi) * Math.sin(theta);
+                    const z = r_rand * Math.cos(phi);
 
-                    positions[particleIndex * 3]     = x + p.distance;
-                    positions[particleIndex * 3 + 1] = y;
-                    positions[particleIndex * 3 + 2] = z;
-
-                    colors[particleIndex * 3]     = planetColor.r;
-                    colors[particleIndex * 3 + 1] = planetColor.g;
-                    colors[particleIndex * 3 + 2] = planetColor.b;
-
-                    particleData.push({
-                        id: p.name,
-                        type: 'body', // 行星主体粒子
+                    tempParticles.push({
+                        x: x + p.distance, y: y, z: z, 
+                        color: planetColor.clone(), 
+                        id: p.name, type: 'body', 
                         originalPos: new THREE.Vector3(x, y, z),
-                        orbitDistance: p.distance,
-                        speed: p.speed,
-                        angle: Math.random() * Math.PI * 2,
-                        color: planetColor,
-                        size: (p.name === 'Sun' ? 0.3 : 0.15) // 主体粒子较大
+                        orbitDistance: p.distance, speed: p.speed, angle: Math.random() * Math.PI * 2,
+                        size: (p.name === 'Sun' ? 0.3 : 0.1) // 主体粒子较大且纯色
                     });
-                    particleIndex++;
                 }
 
-                // 2. 创建轨道/星云粒子 (大量小粒子，负责细节)
-                const cloudParticles = p.name === 'Sun' ? 200 : 300; 
+                // 2. 创建轨道/星云粒子 (负责细节和氛围)
+                const cloudParticles = p.name === 'Sun' ? 4000 : 8000; 
                 for (let i = 0; i < cloudParticles; i++) {
-                    const r = p.size * 2 + Math.random() * 0.5; // 稍大一点的半径
+                    const r_rand = Math.cbrt(Math.random()) * p.size * 2; // 星云范围略大
                     const theta = Math.random() * Math.PI * 2;
                     const phi = Math.acos((Math.random() * 2) - 1);
                     
-                    const x = r * Math.sin(phi) * Math.cos(theta);
-                    const y = r * Math.sin(phi) * Math.sin(theta);
-                    const z = r * Math.cos(phi);
-
-                    positions[particleIndex * 3]     = x + p.distance;
-                    positions[particleIndex * 3 + 1] = y;
-                    positions[particleIndex * 3 + 2] = z;
-
-                    colors[particleIndex * 3]     = planetColor.r * 0.5;
-                    colors[particleIndex * 3 + 1] = planetColor.g * 0.5;
-                    colors[particleIndex * 3 + 2] = planetColor.b * 0.5;
-
-                    particleData.push({
-                        id: p.name,
-                        type: 'cloud', // 星云/大气粒子
+                    const x = r_rand * Math.sin(phi) * Math.cos(theta);
+                    const y = r_rand * Math.sin(phi) * Math.sin(theta);
+                    const z = r_rand * Math.cos(phi);
+                    
+                    const cloudColor = planetColor.clone().multiplyScalar(0.7); // 星云颜色更暗
+                    
+                    tempParticles.push({
+                        x: x + p.distance, y: y, z: z, 
+                        color: cloudColor, 
+                        id: p.name, type: 'cloud', 
                         originalPos: new THREE.Vector3(x, y, z),
-                        orbitDistance: p.distance,
-                        speed: p.speed,
-                        angle: Math.random() * Math.PI * 2,
-                        color: planetColor,
-                        size: 0.05 // 星云粒子较小
+                        orbitDistance: p.distance, speed: p.speed, angle: Math.random() * Math.PI * 2,
+                        size: 0.05 // 星云粒子较小且半透明
                     });
-                    particleIndex++;
                 }
             });
 
-            // 填充剩余的背景粒子，避免 Three.js 警告
-            for (let i = particleIndex; i < MAIN_PARTICLE_COUNT; i++) {
-                positions[i * 3] = 0; positions[i * 3 + 1] = 0; positions[i * 3 + 2] = 0;
-                colors[i * 3] = 0; colors[i * 3 + 1] = 0; colors[i * 3 + 2] = 0;
-                particleData.push({ id: 'dummy', type: 'dummy', originalPos: new THREE.Vector3(0, 0, 0), orbitDistance: 0, speed: 0, angle: 0, color: new THREE.Color(0x000000), size: 0 });
-            }
+            // 限制粒子总数并写入 Buffer
+            const totalParticles = Math.min(tempParticles.length, MAIN_PARTICLE_COUNT);
+            particleData = tempParticles.slice(0, totalParticles); // 裁剪或使用全部
+            
+            for (let i = 0; i < totalParticles; i++) {
+                const p = particleData[i];
+                positions[i * 3] = p.x;
+                positions[i * 3 + 1] = p.y;
+                positions[i * 3 + 2] = p.z;
 
+                colors[i * 3]     = p.color.r;
+                colors[i * 3 + 1] = p.color.g;
+                colors[i * 3 + 2] = p.color.b;
+
+                geometry.attributes.size.array[i] = p.size;
+            }
 
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
             geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
             
             // 为每个粒子添加尺寸属性
             const sizes = new Float32Array(MAIN_PARTICLE_COUNT);
-            for(let i=0; i<MAIN_PARTICLE_COUNT; i++) {
-                sizes[i] = particleData[i].size;
+             for(let i=0; i<MAIN_PARTICLE_COUNT; i++) {
+                sizes[i] = i < totalParticles ? particleData[i].size : 0;
             }
             geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
 
             const material = new THREE.PointsMaterial({
-                size: 0.1, // 基础尺寸
-                vertexColors: true, // 启用顶点颜色
+                size: 0.1, 
+                vertexColors: true, 
                 transparent: true,
                 opacity: 0.9,
-                blending: THREE.AdditiveBlending, // 发光效果
+                blending: THREE.AdditiveBlending, 
             });
 
             particleSystem = new THREE.Points(geometry, material);
@@ -437,9 +434,8 @@
             currentMode = 'overview';
             currentFocusPlanet = planets[0]; // 聚焦太阳
             
-            // 隐藏粒子颜色选择器，总览模式下颜色是固定的
+            // 隐藏粒子颜色选择器
             document.getElementById('color-control-group').style.visibility = 'hidden';
-
             updatePlanetInfo(currentFocusPlanet);
         };
         planetSelector.appendChild(overviewBtn);
@@ -468,7 +464,7 @@
             planetSelector.appendChild(btn);
         });
         
-        // 3. 颜色选择器监听 (现在仅影响聚焦行星的星云粒子)
+        // 3. 颜色选择器监听
         document.getElementById('color-picker').addEventListener('input', (e) => {
             particleColor = e.target.value;
             // 实时更新当前聚焦行星的星云粒子颜色（在 animate 循环中处理）
@@ -476,6 +472,27 @@
         
         // 默认隐藏颜色选择器
         document.getElementById('color-control-group').style.visibility = 'hidden';
+
+        // 4. UI 隐藏/恢复逻辑
+        let isUIHidden = false;
+        function toggleUI() {
+            const uiPanel = document.getElementById('ui-container');
+            const infoPanel = document.getElementById('info-panel');
+            const toggleBtn = document.getElementById('toggle-ui-btn');
+            
+            if (isUIHidden) {
+                // 恢复
+                uiPanel.style.transform = 'translateX(0)';
+                infoPanel.style.transform = 'translateX(0)';
+                toggleBtn.innerText = '✖';
+            } else {
+                // 隐藏
+                uiPanel.style.transform = 'translateX(-350px)';
+                infoPanel.style.transform = 'translateX(350px)';
+                toggleBtn.innerText = '☰'; // 汉堡菜单图标表示恢复
+            }
+            isUIHidden = !isUIHidden;
+        }
 
 
         // 全屏逻辑 (保持不变)
@@ -566,13 +583,14 @@
             const positions = particleSystem.geometry.attributes.position.array;
             const colors = particleSystem.geometry.attributes.color.array;
             currentScale += (targetScale - currentScale) * 0.1;
+            currentX += (targetX - currentX) * 0.1;
 
-            let focusX = 0, focusY = 0, focusZ = 0; // 当前聚焦行星的实际位置
+            let focusX = 0, focusY = 0, focusZ = 0; 
+            let focusBodyParticleCount = currentFocusPlanet.name === 'Sun' ? 2000 : 500;
 
             // 1. 粒子运动和位置更新
             for(let i = 0; i < particleData.length; i++) {
                 const p = particleData[i];
-                if (p.id === 'dummy') continue;
 
                 // 公转运动
                 if (p.orbitDistance > 0) {
@@ -585,7 +603,8 @@
                 }
                 
                 // 行星自转 / 扩散
-                const finalScale = 1 + (p.id === currentFocusPlanet.name && currentMode === 'focus' ? currentScale * 0.1 : 0);
+                const isFocused = p.id === currentFocusPlanet.name;
+                const finalScale = 1 + (isFocused && currentMode === 'focus' ? (currentScale - 1) * 0.5 : 0);
                 const rotAngle = Date.now() * 0.0005 * (p.id === 'Sun' ? 0.2 : 1);
                 
                 const rotatedX = p.originalPos.x * Math.cos(rotAngle) - p.originalPos.z * Math.sin(rotAngle);
@@ -596,15 +615,15 @@
                 positions[i * 3 + 2] = p.z + rotatedZ * finalScale;
 
                 // 颜色更新 (仅在聚焦模式下改变星云颜色)
-                if (currentMode === 'focus' && p.id === currentFocusPlanet.name && p.type === 'cloud') {
+                if (currentMode === 'focus' && isFocused && p.type === 'cloud') {
                      const targetColor = new THREE.Color(particleColor);
-                     colors[i * 3] = targetColor.r * 0.5;
-                     colors[i * 3 + 1] = targetColor.g * 0.5;
-                     colors[i * 3 + 2] = targetColor.b * 0.5;
+                     colors[i * 3] = targetColor.r * 0.7;
+                     colors[i * 3 + 1] = targetColor.g * 0.7;
+                     colors[i * 3 + 2] = targetColor.b * 0.7;
                 }
-                
-                // 获取聚焦行星的中心位置
-                if (p.id === currentFocusPlanet.name && p.type === 'body' && i < 20) { // 仅用前20个主体粒子估算中心
+
+                // 计算聚焦行星的中心位置（仅使用主体粒子）
+                if (isFocused && p.type === 'body') { 
                     focusX += positions[i * 3];
                     focusY += positions[i * 3 + 1];
                     focusZ += positions[i * 3 + 2];
@@ -612,13 +631,12 @@
             }
 
             particleSystem.geometry.attributes.position.needsUpdate = true;
-            particleSystem.geometry.attributes.color.needsUpdate = true; // 确保颜色更新
+            particleSystem.geometry.attributes.color.needsUpdate = true; 
 
             // 2. 相机平滑过渡逻辑 (Lerp)
 
             // 计算当前聚焦行星的平均位置
-            const bodyCount = currentFocusPlanet.name === 'Sun' ? 50 : 20;
-            focusX /= bodyCount; focusY /= bodyCount; focusZ /= bodyCount;
+            focusX /= focusBodyParticleCount; focusY /= focusBodyParticleCount; focusZ /= focusBodyParticleCount;
 
             // 设置相机目标点和看向点
             targetCameraLookAt.set(focusX, focusY, focusZ);
@@ -626,12 +644,19 @@
             if (currentMode === 'focus') {
                 // 聚焦模式：拉近到行星前方
                 const planetRadius = currentFocusPlanet.focusDistance;
-                targetCameraPos.set(focusX, focusY + 0.5, focusZ + planetRadius * 1.5);
-                scene.rotation.y += (targetX * 0.1 - scene.rotation.y) * 0.1; // 手势控制旋转模型
+                // 相机放在行星后方，并受手势影响旋转
+                const orbitRadius = planetRadius * 1.5;
+                const camAngle = currentX * 0.5;
+                
+                targetCameraPos.set(
+                    focusX + orbitRadius * Math.sin(camAngle),
+                    focusY + 0.5, 
+                    focusZ + orbitRadius * Math.cos(camAngle)
+                );
             } else {
                 // 总览模式：固定视角，手势控制总览旋转
                 targetCameraPos.set(0, 10, targetScale); // targetScale 在总览模式下是 Z 距离
-                scene.rotation.y += (targetX * 0.5 - scene.rotation.y) * 0.1;
+                scene.rotation.y = currentX * 0.5;
             }
 
             // 平滑移动相机
