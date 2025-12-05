@@ -361,9 +361,14 @@
                 colors[i * 3]     = p.color.r;
                 colors[i * 3 + 1] = p.color.g;
                 colors[i * 3 + 2] = p.color.b;
-
-                geometry.attributes.size.array[i] = p.size;
             }
+            
+            // 填充剩余的尺寸数据，防止报错
+            for (let i = totalParticles; i < MAIN_PARTICLE_COUNT; i++) {
+                positions[i * 3] = 0; positions[i * 3 + 1] = 0; positions[i * 3 + 2] = 0;
+                colors[i * 3] = 0; colors[i * 3 + 1] = 0; colors[i * 3 + 2] = 0;
+            }
+
 
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
             geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
@@ -437,6 +442,9 @@
             // 隐藏粒子颜色选择器
             document.getElementById('color-control-group').style.visibility = 'hidden';
             updatePlanetInfo(currentFocusPlanet);
+            
+            // **修复：强制设置相机回到总览位置**
+            targetCameraPos.set(0, 10, 20);
         };
         planetSelector.appendChild(overviewBtn);
 
@@ -582,6 +590,7 @@
 
             const positions = particleSystem.geometry.attributes.position.array;
             const colors = particleSystem.geometry.attributes.color.array;
+            const sizes = particleSystem.geometry.attributes.size.array; // 获取尺寸数组
             currentScale += (targetScale - currentScale) * 0.1;
             currentX += (targetX - currentX) * 0.1;
 
@@ -621,6 +630,9 @@
                      colors[i * 3 + 1] = targetColor.g * 0.7;
                      colors[i * 3 + 2] = targetColor.b * 0.7;
                 }
+                
+                // **修复：强制更新粒子尺寸（使它们更可见）**
+                sizes[i] = p.size * (currentMode === 'overview' ? 1.5 : 2.5); // 稍微放大粒子尺寸，总览模式下更可见
 
                 // 计算聚焦行星的中心位置（仅使用主体粒子）
                 if (isFocused && p.type === 'body') { 
@@ -629,7 +641,9 @@
                     focusZ += positions[i * 3 + 2];
                 }
             }
-
+            
+            // 修复：确保尺寸数组需要更新
+            particleSystem.geometry.attributes.size.needsUpdate = true;
             particleSystem.geometry.attributes.position.needsUpdate = true;
             particleSystem.geometry.attributes.color.needsUpdate = true; 
 
