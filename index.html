@@ -13,7 +13,8 @@
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         canvas { display: block; }
-        
+
+
         /* UI 面板 */
         #ui-container {
             position: absolute;
@@ -110,6 +111,43 @@
             }
             #input_video { display: none; }
         }
+
+        
+        /* 【新增：信息面板样式】 */
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px; 
+            width: 300px;
+            background: rgba(30, 30, 50, 0.85); 
+            backdrop-filter: blur(8px);
+            padding: 15px;
+            border-radius: 10px;
+            color: #fff;
+            z-index: 10;
+        }
+        #info-panel h3 { 
+            color: #f9d71c; 
+            border-bottom: 1px solid #444; 
+            padding-bottom: 5px; 
+            margin-top: 0;
+        }
+        #info-panel p { 
+            font-size: 0.9rem; 
+            line-height: 1.5; 
+            margin-bottom: 8px; 
+        }
+        /* 调整移动端适配 */
+        @media (max-width: 600px) {
+            #info-panel {
+                top: 10px;
+                left: 10px;
+                right: auto;
+                width: calc(100% - 20px);
+                margin-bottom: 10px;
+            }
+        }
+        
     </style>
 </head>
 <body>
@@ -138,23 +176,106 @@
             👐 <b>双手张开/合拢:</b> 控制大小/爆炸
         </div>
     </div>
+</div>
+    
+<div id="info-panel">
+        <h3>星球简介：<span id="planet-name"></span></h3>
+        <p>🔭 **一般观测星等：** <span id="planet-magnitude"></span></p>
+        <p>👁️ **如何肉眼观测：** <span id="planet-obs"></span></p>
+        <p>💡 **对生活的影响：** <span id="planet-impact"></span></p>
+        <p>📜 **有趣的故事：** <span id="planet-story"></span></p>
+    </div>
 
     <div id="status">正在初始化摄像头与AI模型...</div>
     <button id="fullscreen-btn" onclick="toggleFullScreen()">⛶</button>
 
     <script>
         // ================= 配置数据 =================
-        const planets = [
-            { name: 'Sun', color: '#FDB813', size: 2.5 },
-            { name: 'Mercury', color: '#A57C5B', size: 0.8 },
-            { name: 'Venus', color: '#E3BB76', size: 1.2 },
-            { name: 'Earth', color: '#22A6F2', size: 1.3 },
-            { name: 'Mars', color: '#DF4925', size: 1.0 },
-            { name: 'Jupiter', color: '#C88B3A', size: 2.2 },
-            { name: 'Saturn', color: '#C5AB6E', size: 2.0 },
-            { name: 'Uranus', color: '#4FD0E7', size: 1.8 },
-            { name: 'Neptune', color: '#3E54E8', size: 1.8 }
-        ];
+        // 【替换掉】原有的 const planets = [...] 数组，用下面的新数组：
+const planets = [
+    { 
+        name: 'Sun', 
+        color: '#FDB813', 
+        size: 2.5, 
+        magnitude: -26.74, 
+        obs: '肉眼观测：在白天即可观测，但切勿直视！',
+        impact: '提供地球生命所需的能量和光照，驱动气候系统。',
+        story: '在古希腊神话中，太阳神阿波罗（Apollo）每天驾驶太阳战车划过天空。',
+    },
+    { 
+        name: 'Mercury', 
+        color: '#A57C5B', 
+        size: 0.8, 
+        magnitude: -1.9, 
+        obs: '肉眼观测：观测难度较大，通常在日出前或日落后不久的低空中才能看到。',
+        impact: '是太阳系中最靠近太阳的行星，对研究行星形成至关重要。',
+        story: '以罗马信使神墨丘利（Mercury）命名，因其公转速度快。',
+    },
+    { 
+        name: 'Venus', 
+        color: '#E3BB76', 
+        size: 1.2, 
+        magnitude: -4.9, 
+        obs: '肉眼观测：非常明亮，是天空中的“晨星”或“昏星”，仅次于太阳和月亮。',
+        impact: '其极端的温室效应是研究地球气候变化的警示。',
+        story: '以罗马爱与美之女神维纳斯（Venus）命名。',
+    },
+    { 
+        name: 'Earth', 
+        color: '#22A6F2', 
+        size: 1.3, 
+        magnitude: -3.99, // 月球平均亮度
+        obs: '肉眼观测：夜晚可见月球、白日可见太阳。地球本身无法被观测（除非你离开了它）。',
+        impact: '我们赖以生存的家园，其磁场保护我们免受太阳风暴侵害。',
+        story: '古人曾相信地球是宇宙的中心（地心说）。',
+    },
+    { 
+        name: 'Mars', 
+        color: '#DF4925', 
+        size: 1.0, 
+        magnitude: -2.91, // 最亮时
+        obs: '肉眼观测：颜色偏红，在冲日时非常明亮，是夜空中最容易识别的红点之一。',
+        impact: '是人类未来星际殖民的焦点，也是寻找地外生命的关键目标。',
+        story: '以罗马战神玛尔斯（Mars）命名，其红色来自于表面的氧化铁（铁锈）。',
+    },
+    { 
+        name: 'Jupiter', 
+        color: '#C88B3A', 
+        size: 2.2, 
+        magnitude: -2.94, 
+        obs: '肉眼观测：通常是夜空中最亮的行星，看起来像一颗巨大的白色星星。',
+        impact: '其巨大的引力场保护内太阳系行星免受小行星撞击。',
+        story: '以罗马神话中众神之王朱庇特（Jupiter）命名。',
+    },
+    { 
+        name: 'Saturn', 
+        color: '#C5AB6E', 
+        size: 2.0, 
+        magnitude: +0.47, 
+        obs: '肉眼观测：看起来像一颗较亮的黄色星星，需要望远镜才能看到标志性的光环。',
+        impact: '其光环系统是太阳系中最壮观的自然景观。',
+        story: '以罗马农业之神萨图尔努斯（Saturnus）命名。',
+    },
+    { 
+        name: 'Uranus', 
+        color: '#4FD0E7', 
+        size: 1.8, 
+        magnitude: +5.9, 
+        obs: '肉眼观测：几乎达到肉眼可见的极限，通常需要非常黑暗的天空，看起来像一个模糊的蓝绿色点。',
+        impact: '其独特的侧卧式自转轴颠覆了行星形成的理论。',
+        story: '以希腊天空之神乌拉诺斯（Uranus）命名。',
+    },
+    { 
+        name: 'Neptune', 
+        color: '#3E54E8', 
+        size: 1.8, 
+        magnitude: +7.8, 
+        obs: '肉眼观测：无法用肉眼看到，需要望远镜。',
+        impact: '它是太阳系中风速最快的行星之一。',
+        story: '以罗马海神尼普顿（Neptune）命名。',
+    }
+];
+
 
         // ================= Three.js 初始化 =================
         const scene = new THREE.Scene();
@@ -237,6 +358,16 @@
 
         // 默认初始化太阳
         createPlanet(planets[0].color, planets[0].size);
+         // 【新增：星球信息更新函数 (加在 createPlanet 函数附近)】
+function updatePlanetInfo(planetData) {
+    document.getElementById('planet-name').textContent = planetData.name;
+    document.getElementById('planet-magnitude').textContent = 
+        planetData.magnitude ? `${planetData.magnitude} M` : 'N/A';
+    document.getElementById('planet-obs').textContent = planetData.obs;
+    document.getElementById('planet-impact').textContent = planetData.impact;
+    document.getElementById('planet-story').textContent = planetData.story;
+}
+
 
         // ================= UI 逻辑 =================
         const planetSelector = document.getElementById('planet-selector');
@@ -245,13 +376,25 @@
             const btn = document.createElement('button');
             btn.className = 'planet-btn';
             btn.innerText = p.name;
-            btn.onclick = () => {
-                document.querySelectorAll('.planet-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                createPlanet(p.color, p.size);
-            };
-            planetSelector.appendChild(btn);
-        });
+
+    btn.onclick = () => {
+        document.querySelectorAll('.planet-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        createPlanet(p.color, p.size); // 切换粒子模型
+        
+        // **关键新增：调用信息更新函数**
+        const selectedInfo = planets.find(i => i.name === p.name);
+        if (selectedInfo) {
+            updatePlanetInfo(selectedInfo);
+        }
+    };
+    planetSelector.appendChild(btn);
+});
+
+// 【新增：在循环结束后，添加这一行代码来初始化信息面板】
+// 页面初始化时显示太阳的介绍
+updatePlanetInfo(planets.find(i => i.name === planets[0].name)); 
+
 
         // 颜色选择器监听
         document.getElementById('color-picker').addEventListener('input', (e) => {
