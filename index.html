@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Solar Dust XVI - Final Polish</title>
+    <title>Solar Dust XVII - Link & UI Fix</title>
     <style>
         :root { --bg: #000; --panel: rgba(20,20,20,0.6); --border: rgba(255,255,255,0.15); --accent: #fff; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: "Segoe UI", sans-serif; }
         
-        /* 核心画布 */
         #canvas-container { position: absolute; inset: 0; z-index: 1; }
-        /* 视频流必须存在但透明 */
         #input-video { position: fixed; top: 0; left: 0; width: 320px; height: 240px; opacity: 0; pointer-events: none; z-index: -1; }
 
         /* UI 通用 */
         .ui { position: absolute; z-index: 10; width: 100%; height: 100%; pointer-events: none; color: #ccc; }
         .panel { pointer-events: auto; background: var(--panel); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 6px; }
 
-        /* 1. 左上角：导航面板 */
+        /* 1. 左上角：导航面板 (固定左侧) */
         #nav { 
             position: absolute; top: 20px; left: 20px; width: 140px; 
-            max-height: 70vh; overflow-y: auto; padding: 5px;
+            max-height: 60vh; overflow-y: auto; padding: 5px;
+            z-index: 20; /* 保证层级 */
         }
         .btn {
             display: block; width: 100%; background: none; border: none; position: relative;
@@ -30,12 +29,12 @@
         .btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
         .btn.active { color: #fff; font-weight: bold; background: rgba(255,255,255,0.1); border-left: 3px solid #fff; }
 
-        /* 2. 右上角：语言面板 (绝对定位，防止重合) */
+        /* 2. 右上角：语言面板 (固定右侧) */
         #lang-container {
             position: absolute; top: 20px; right: 20px; 
             pointer-events: auto; display: flex; align-items: center;
             background: var(--panel); padding: 4px; border-radius: 20px; border: 1px solid var(--border);
-            position: relative; z-index: 20; /* 层级高于其他 */
+            z-index: 20;
         }
         .lang-btn {
             background: none; border: none; color: #888; font-size: 10px; cursor: pointer; 
@@ -47,15 +46,23 @@
             background: #fff; border-radius: 16px; z-index: 1; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); width: 0;
         }
 
-        /* 3. 底部：仪表盘 */
+        /* 3. 新增：页面跳转按钮 (在语言栏下方) */
+        #link-btn {
+            position: absolute; top: 70px; right: 20px; pointer-events: auto;
+            background: rgba(0, 255, 128, 0.1); border: 1px solid rgba(0, 255, 128, 0.3);
+            color: #0f8; font-size: 10px; letter-spacing: 2px; padding: 8px 15px;
+            cursor: pointer; border-radius: 20px; transition: 0.3s; text-transform: uppercase;
+        }
+        #link-btn:hover { background: #0f8; color: #000; box-shadow: 0 0 15px rgba(0,255,128,0.4); }
+
+        /* 4. 底部：仪表盘 */
         #hud-container {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            width: 300px; background: rgba(0,0,0,0.8); border: 1px solid var(--border);
-            border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px;
+            width: 280px; background: rgba(0,0,0,0.8); border: 1px solid var(--border);
+            border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px;
             backdrop-filter: blur(5px);
         }
         .hud-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-family: monospace; letter-spacing: 1px; }
-        .status-box { display: flex; gap: 15px; }
         .indicator { display: flex; align-items: center; gap: 6px; }
         .led { width: 6px; height: 6px; border-radius: 50%; background: #333; transition: 0.3s; }
         .led.on { background: #0f0; box-shadow: 0 0 8px #0f0; }
@@ -64,29 +71,20 @@
         #gesture-track { width: 100%; height: 4px; background: #222; border-radius: 2px; overflow: hidden; margin-top: 5px; }
         #gesture-fill { width: 0%; height: 100%; background: #0f0; transition: width 0.1s; }
 
-        /* 4. 右下：详情面板 */
+        /* 5. 右下：详情面板 */
         #info-card {
-            position: absolute; bottom: 140px; right: 20px; width: 260px;
-            padding: 20px; opacity: 0; transform: translateY(20px); transition: 0.4s;
+            position: absolute; bottom: 140px; right: 20px; width: 220px;
+            padding: 15px; opacity: 0; transform: translateY(20px); transition: 0.4s;
         }
         #info-card.show { opacity: 1; transform: translateY(0); }
         .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: monospace; font-size: 10px; color: #aaa; margin-top: 15px; }
         .data-item span { display: block; color: #666; font-size: 9px; margin-bottom: 2px; }
 
         /* 启动页 */
-        #cover {
-            position: fixed; inset: 0; background: #000; z-index: 100;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 0.8s;
-        }
-        #btn-start {
-            margin-top: 30px; background: transparent; border: 1px solid #444; color: #fff;
-            padding: 12px 50px; letter-spacing: 6px; cursor: pointer; font-size: 12px;
-            border-radius: 4px; transition: 0.3s;
-        }
+        #cover { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.8s; }
+        #btn-start { margin-top: 30px; background: transparent; border: 1px solid #444; color: #fff; padding: 12px 50px; letter-spacing: 6px; cursor: pointer; font-size: 12px; border-radius: 4px; transition: 0.3s; }
         #btn-start:hover { border-color: #fff; background: rgba(255,255,255,0.1); }
         #error-msg { color: #f44; font-size: 11px; margin-top: 15px; display: none; text-align: center; }
-
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -98,8 +96,8 @@
 <body>
 
     <div id="cover">
-        <div style="font-size: 32px; letter-spacing: 12px; color: #ddd; font-weight: 200;">SOLAR XVI</div>
-        <div style="font-size: 10px; color: #666; margin-top: 10px;">FINAL POLISH</div>
+        <div style="font-size: 32px; letter-spacing: 12px; color: #ddd; font-weight: 200;">SOLAR XVII</div>
+        <div style="font-size: 10px; color: #666; margin-top: 10px;">HYPERLINK EDITION</div>
         <button id="btn-start">INITIALIZE SYSTEM</button>
         <div id="error-msg"></div>
     </div>
@@ -117,12 +115,16 @@
             <button class="lang-btn" data-lang="IT">IT</button>
         </div>
 
+        <button id="link-btn" onclick="window.location.href='page2.html'">
+            ENTER WORMHOLE ➔
+        </button>
+
         <div id="hud-container">
             <div class="hud-row" style="border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:5px;">
                 <span style="color:#666;">GESTURE LINK</span>
                 <span id="sys-status" style="color:#aaa;">STANDBY</span>
             </div>
-            <div class="status-box">
+            <div class="status-box" style="display:flex; gap:15px;">
                 <div class="indicator"><div class="led" id="led-cam"></div><span id="txt-cam">CAM</span></div>
                 <div class="indicator"><div class="led" id="led-hand"></div><span id="txt-hand">HAND</span></div>
             </div>
@@ -152,13 +154,16 @@
         uniform float uTime; uniform float uDisperse; varying float vAlpha;
         void main() {
             vec3 solidPos = position;
+            // 弥散动画
             vec3 dispersedPos = solidPos + mistOffset * (1.0 + sin(uTime*0.5 + randomScale)*0.2);
             dispersedPos.x += sin(uTime*0.3 + randomScale*10.0)*3.0;
             dispersedPos.y += cos(uTime*0.2 + randomScale*20.0)*3.0;
             dispersedPos.z += sin(uTime*0.4 + randomScale*30.0)*3.0;
+            
             vec3 finalPos = mix(solidPos, dispersedPos, uDisperse);
             float breath = 0.05 * (1.0 - uDisperse);
             finalPos *= 1.0 + sin(uTime*2.0 + randomScale*10.0)*breath;
+            
             vec4 mvPosition = modelViewMatrix * vec4(finalPos, 1.0);
             float currentSize = size * (1.0 + uDisperse * 2.5);
             gl_PointSize = currentSize * (200.0 / -mvPosition.z);
@@ -178,12 +183,12 @@
     <script>
         // --- 1. 多语言 ---
         const LANG = {
-            CN: { lbl: { dia:"直径", tmp:"温度", grav:"重力", day:"自转" }, sys: "星系全览", sun: "太阳", mer: "水星", ven: "金星", ear: "地球", mar: "火星", jup: "木星", sat: "土星", ura: "天王星", nep: "海王星", desc: { sun: "主序星", mer: "岩石行星", ven: "浓厚大气", ear: "蓝色星球", mar: "红色沙漠", jup: "气体巨星", sat: "光环行星", ura: "冰巨星", nep: "蓝色冰球" }, hud: { cam:"相机", hand:"手势", act_form:"实体 (聚合)", act_mist:"星云 (弥散)" } },
-            EN: { lbl: { dia:"DIAMETER", tmp:"TEMP", grav:"GRAVITY", day:"DAY" }, sys: "SYSTEM VIEW", sun: "SUN", mer: "MERCURY", ven: "VENUS", ear: "EARTH", mar: "MARS", jup: "JUPITER", sat: "SATURN", ura: "URANUS", nep: "NEPTUNE", desc: { sun: "Main Sequence", mer: "Rocky World", ven: "Thick Atmosphere", ear: "Blue Marble", mar: "Red Desert", jup: "Gas Giant", sat: "Ringed Jewel", ura: "Ice Giant", nep: "Deep Blue" }, hud: { cam:"CAM", hand:"HAND", act_form:"FORM (SOLID)", act_mist:"MIST (OPEN)" } },
-            DE: { lbl: { dia:"DURCHMESSER", tmp:"TEMP", grav:"GRAVITATION", day:"TAG" }, sys:"SYSTEM", sun:"SONNE", mer:"MERKUR", ven:"VENUS", ear:"ERDE", mar:"MARS", jup:"JUPITER", sat:"SATURN", ura:"URANUS", nep:"NEPTUN", desc: { sun: "Hauptreihenstern", ear: "Der Blaue Planet" }, hud: { cam:"KAMERA", hand:"HAND", act_form:"FEST", act_mist:"NEBEL" } },
-            FR: { lbl: { dia:"DIAMÈTRE", tmp:"TEMP", grav:"GRAVITÉ", day:"JOUR" }, sys:"SYSTÈME", sun:"SOLEIL", mer:"MERCURE", ven:"VÉNUS", ear:"TERRE", mar:"MARS", jup:"JUPITER", sat:"SATURNE", ura:"URANUS", nep:"NEPTUNE", desc: { sun: "Étoile Principale", ear: "La Planète Bleue" }, hud: { cam:"CAMERA", hand:"MAIN", act_form:"SOLIDE", act_mist:"NÉBULEUSE" } },
-            ES: { lbl: { dia:"DIÁMETRO", tmp:"TEMP", grav:"GRAVEDAD", day:"DÍA" }, sys:"SISTEMA", sun:"SOL", mer:"MERCURIO", ven:"VENUS", ear:"TIERRA", mar:"MARTE", jup:"JÚPITER", sat:"SATURNO", ura:"URANO", nep:"NEPTUNO", desc: { sun: "Estrella Principal", ear: "El Planeta Azul" }, hud: { cam:"CÁMARA", hand:"MANO", act_form:"SÓLIDO", act_mist:"NIEBLA" } },
-            IT: { lbl: { dia:"DIAMETRO", tmp:"TEMP", grav:"GRAVITÀ", day:"GIORNO" }, sys:"SISTEMA", sun:"SOLE", mer:"MERCURIO", ven:"VENERE", ear:"TERRA", mar:"MARTE", jup:"GIOVE", sat:"SATURNO", ura:"URANO", nep:"NETTUNO", desc: { sun: "Stella Principale", ear: "Il Pianeta Blu" }, hud: { cam:"CAMERA", hand:"MANO", act_form:"SOLIDO", act_mist:"NEBBIA" } }
+            CN: { lbl: { dia:"直径", tmp:"温度", grav:"重力", day:"自转" }, sys: "星系全览", sun: "太阳", mer: "水星", ven: "金星", ear: "地球", mar: "火星", jup: "木星", sat: "土星", ura: "天王星", nep: "海王星", desc: { sun: "主序星", mer: "岩石行星", ven: "浓厚大气", ear: "蓝色星球", mar: "红色沙漠", jup: "气体巨星", sat: "光环行星", ura: "冰巨星", nep: "蓝色冰球" }, hud: { cam:"相机", hand:"手势", act_form:"实体 (聚合)", act_mist:"星云 (弥散)", link:"进入虫洞 ➔" } },
+            EN: { lbl: { dia:"DIAMETER", tmp:"TEMP", grav:"GRAVITY", day:"DAY" }, sys: "SYSTEM VIEW", sun: "SUN", mer: "MERCURY", ven: "VENUS", ear: "EARTH", mar: "MARS", jup: "JUPITER", sat: "SATURN", ura: "URANUS", nep: "NEPTUNE", desc: { sun: "Main Sequence", mer: "Rocky World", ven: "Thick Atmosphere", ear: "Blue Marble", mar: "Red Desert", jup: "Gas Giant", sat: "Ringed Jewel", ura: "Ice Giant", nep: "Deep Blue" }, hud: { cam:"CAM", hand:"HAND", act_form:"FORM (SOLID)", act_mist:"MIST (OPEN)", link:"ENTER WORMHOLE ➔" } },
+            DE: { lbl: { dia:"DURCHMESSER", tmp:"TEMP", grav:"GRAVITATION", day:"TAG" }, sys:"SYSTEM", sun:"SONNE", mer:"MERKUR", ven:"VENUS", ear:"ERDE", mar:"MARS", jup:"JUPITER", sat:"SATURN", ura:"URANUS", nep:"NEPTUN", desc: { sun: "Hauptreihenstern", ear: "Der Blaue Planet" }, hud: { cam:"KAMERA", hand:"HAND", act_form:"FEST", act_mist:"NEBEL", link:"WURMLOCH ➔" } },
+            FR: { lbl: { dia:"DIAMÈTRE", tmp:"TEMP", grav:"GRAVITÉ", day:"JOUR" }, sys:"SYSTÈME", sun:"SOLEIL", mer:"MERCURE", ven:"VÉNUS", ear:"TERRE", mar:"MARS", jup:"JUPITER", sat:"SATURNE", ura:"URANUS", nep:"NEPTUNE", desc: { sun: "Étoile Principale", ear: "La Planète Bleue" }, hud: { cam:"CAMERA", hand:"MAIN", act_form:"SOLIDE", act_mist:"NÉBULEUSE", link:"TROU DE VER ➔" } },
+            ES: { lbl: { dia:"DIÁMETRO", tmp:"TEMP", grav:"GRAVEDAD", day:"DÍA" }, sys:"SISTEMA", sun:"SOL", mer:"MERCURIO", ven:"VENUS", ear:"TIERRA", mar:"MARTE", jup:"JÚPITER", sat:"SATURNO", ura:"URANO", nep:"NEPTUNO", desc: { sun: "Estrella Principal", ear: "El Planeta Azul" }, hud: { cam:"CÁMARA", hand:"MANO", act_form:"SÓLIDO", act_mist:"NIEBLA", link:"AGUJERO DE GUSANO ➔" } },
+            IT: { lbl: { dia:"DIAMETRO", tmp:"TEMP", grav:"GRAVITÀ", day:"GIORNO" }, sys:"SISTEMA", sun:"SOLE", mer:"MERCURIO", ven:"VENERE", ear:"TERRA", mar:"MARTE", jup:"GIOVE", sat:"SATURNO", ura:"URANO", nep:"NETTUNO", desc: { sun: "Stella Principale", ear: "Il Pianeta Blu" }, hud: { cam:"CAMERA", hand:"MANO", act_form:"SOLIDO", act_mist:"NEBBIA", link:"WORMHOLE ➔" } }
         };
         let curLang = 'CN';
 
@@ -223,7 +228,7 @@
             });
         });
 
-        // --- Language & Slider ---
+        // --- Language Logic ---
         document.querySelectorAll('.lang-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
@@ -257,9 +262,10 @@
             }
             document.getElementById('txt-cam').innerText = t.hud.cam;
             document.getElementById('txt-hand').innerText = t.hud.hand;
+            document.getElementById('link-btn').innerText = t.hud.link;
         }
 
-        // --- 3D Engine ---
+        // --- 3D Logic ---
         function createTexture() {
             const c = document.createElement('canvas'); c.width=64; c.height=64;
             const ctx = c.getContext('2d');
@@ -308,7 +314,6 @@
                 if(d.d>0) {
                     const pts=[]; for(let j=0; j<=256; j++){ const a=(j/256)*Math.PI*2; pts.push(new THREE.Vector3(Math.cos(a)*d.d,0,Math.sin(a)*d.d)); }
                     const geo=new THREE.BufferGeometry().setFromPoints(pts);
-                    // 修正1：轨道线透明度增加到 0.15
                     const mat=new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.15, blending:THREE.AdditiveBlending});
                     scene.add(new THREE.LineLoop(geo, mat));
                 }
@@ -380,10 +385,10 @@
             state.disperse += (state.targetDisperse - state.disperse) * 0.08;
             uniforms.uDisperse.value = state.disperse;
             
-            // HUD Update
-            const t = LANG[curLang].hud;
+            // HUD
             const bar = document.getElementById('gesture-fill');
             const act = document.getElementById('val-action');
+            const t = LANG[curLang].hud;
             bar.style.width = (state.disperse * 100) + '%';
             if(state.disperse > 0.5) {
                 bar.style.backgroundColor = '#0f0';
@@ -395,8 +400,7 @@
                 act.style.color = '#888';
             }
 
-            planets.forEach(p => { p.pivot.rotation.y += p.speed; });
-
+            planets.forEach(p => p.pivot.rotation.y += p.speed);
             if (activeIdx !== -1) {
                 const target = planets[activeIdx - 1];
                 if (target) {
@@ -445,7 +449,6 @@
             }
         }
 
-        // --- HAND TRACKING ---
         async function initVideo() {
             const video = document.getElementById('input-video');
             const ledCam = document.getElementById('led-cam');
