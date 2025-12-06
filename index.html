@@ -2,65 +2,69 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Solar Dust IX - Stable Core</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Solar Dust X - Native Engine</title>
     <style>
-        /* --- 基础设置 --- */
-        :root { --bg: #050505; --panel: rgba(20, 20, 20, 0.6); --text: #cccccc; --accent: #ffffff; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: "Segoe UI", sans-serif; }
+        /* --- 基础样式 --- */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
         #canvas-container { position: absolute; inset: 0; z-index: 1; }
         #input-video { display: none; }
 
-        /* --- UI 布局 (防溢出) --- */
-        .ui-layer { position: absolute; z-index: 10; width: 100%; height: 100%; pointer-events: none; }
+        /* --- UI 层 --- */
+        .ui { position: absolute; z-index: 10; width: 100%; height: 100%; pointer-events: none; color: #aaa; }
         
         /* 侧边栏 */
-        .panel {
-            pointer-events: auto; background: var(--panel);
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
-            padding: 15px; position: absolute; transition: opacity 0.3s;
+        #nav { 
+            position: absolute; top: 20px; left: 20px; width: 140px; 
+            pointer-events: auto; max-height: 80vh; overflow-y: auto;
+            background: rgba(20,20,20,0.5); backdrop-filter: blur(10px);
+            border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+            padding: 10px;
         }
-
-        #nav { top: 20px; left: 20px; width: 140px; max-height: 60vh; overflow-y: auto; }
-        .nav-btn {
-            display: block; width: 100%; background: none; border: none; text-align: left;
-            color: #666; padding: 8px 0; font-size: 11px; letter-spacing: 1px; cursor: pointer;
-            border-bottom: 1px solid rgba(255,255,255,0.05); transition: 0.2s;
+        .btn {
+            display: block; width: 100%; background: none; border: none;
+            color: #888; text-align: left; padding: 8px 5px; cursor: pointer;
+            font-size: 11px; letter-spacing: 1px; transition: 0.3s;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
-        .nav-btn:hover { color: #fff; padding-left: 5px; }
-        .nav-btn.active { color: #fff; font-weight: bold; border-left: 2px solid #fff; padding-left: 8px; }
+        .btn:hover { color: #fff; padding-left: 10px; }
+        .btn.active { color: #fff; font-weight: bold; padding-left: 10px; border-left: 2px solid #fff; }
 
-        /* 信息面板 (关键修复：限制宽度，防止超出屏幕) */
-        #info { 
-            bottom: 30px; right: 20px; 
-            width: 220px; /* 固定宽度，防止太宽 */
-            max-width: 80vw; /* 移动端不超过屏幕80% */
-            opacity: 0; transform: translateY(20px); 
+        /* 底部信息 */
+        #hud {
+            position: absolute; bottom: 30px; left: 30px; right: 30px;
+            display: flex; justify-content: space-between; align-items: flex-end;
         }
-        #info.show { opacity: 1; transform: translateY(0); }
+        
+        #planet-info {
+            opacity: 0; transform: translateY(20px); transition: 0.5s;
+            text-shadow: 0 0 10px #000;
+        }
+        #planet-info.show { opacity: 1; transform: translateY(0); }
+        
+        h1 { margin: 0; font-size: 32px; font-weight: 100; color: #fff; letter-spacing: 4px; }
+        .sub { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #666; margin-bottom: 5px; display: block;}
+        .details { font-family: monospace; font-size: 10px; color: #888; margin-top: 5px; }
 
-        h1 { margin: 0; font-size: 20px; color: #fff; letter-spacing: 2px; font-weight: 300; }
-        .sub { font-size: 9px; color: #888; text-transform: uppercase; margin-bottom: 8px; display: block; }
-        p { font-size: 11px; color: #aaa; line-height: 1.4; margin-bottom: 10px; }
-        .meta { display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; font-size: 10px; font-family: monospace; color: #888; }
-
-        /* 状态栏 */
-        #status { position: absolute; bottom: 20px; left: 20px; font-size: 9px; color: #555; display: flex; align-items: center; gap: 8px; }
+        /* 状态 */
+        #status { font-size: 9px; display: flex; align-items: center; gap: 8px; color: #555; }
         .dot { width: 6px; height: 6px; background: #333; border-radius: 50%; }
-        .dot.on { background: #0f0; box-shadow: 0 0 5px #0f0; }
+        .dot.on { background: #fff; box-shadow: 0 0 8px #fff; }
 
-        /* 启动页 */
-        #start-screen {
-            position: fixed; inset: 0; background: #000; z-index: 99;
+        /* 启动遮罩 */
+        #cover {
+            position: fixed; inset: 0; background: #000; z-index: 100;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 0.5s;
+            transition: opacity 0.8s;
         }
-        .btn-go {
+        #btn-start {
             margin-top: 20px; background: transparent; border: 1px solid #444; color: #fff;
-            padding: 10px 30px; letter-spacing: 4px; cursor: pointer; font-size: 12px;
+            padding: 12px 40px; letter-spacing: 4px; cursor: pointer; font-size: 12px;
+            border-radius: 20px; transition: 0.3s;
         }
+        #btn-start:hover { border-color: #fff; background: rgba(255,255,255,0.1); }
     </style>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
@@ -69,27 +73,24 @@
 </head>
 <body>
 
-    <div id="start-screen">
-        <div style="font-size: 24px; letter-spacing: 6px; color: #eee; font-weight: 300;">PARTICLE <span style="opacity:0.5">DUST</span></div>
-        <button class="btn-go" id="btn-init">INITIALIZE</button>
+    <div id="cover">
+        <div style="font-size: 20px; letter-spacing: 8px; color: #ccc;">SOLAR DUST</div>
+        <button id="btn-start">INITIALIZE</button>
     </div>
 
-    <div class="ui-layer">
-        <div class="panel" id="nav"></div>
+    <div class="ui">
+        <div id="nav"></div>
         
-        <div class="panel" id="info">
-            <h1 id="ui-name">PLANET</h1>
-            <span class="sub" id="ui-type">TYPE</span>
-            <p id="ui-desc">Description text.</p>
-            <div class="meta">
-                <span id="ui-d">DIA: 0</span>
-                <span id="ui-t">TMP: 0</span>
+        <div id="hud">
+            <div id="status">
+                <div class="dot" id="cam-dot"></div>
+                <span>OPEN HAND (MIST) / FIST (FORM)</span>
             </div>
-        </div>
-
-        <div id="status">
-            <div class="dot" id="cam-dot"></div>
-            <span>GESTURE: OPEN (DISPERSE) / FIST (SOLID)</span>
+            <div id="planet-info">
+                <h1 id="p-name">EARTH</h1>
+                <span class="sub" id="p-desc">Habitable Zone</span>
+                <div class="details" id="p-data">DIA: 12742KM | TMP: 15°C</div>
+            </div>
         </div>
     </div>
 
@@ -98,185 +99,212 @@
 
     <script type="x-shader/x-vertex" id="vShader">
         attribute float size;
-        attribute vec3 customPos; // 粒子在球体上的目标位置
-        attribute float randomness; // 随机因子
+        attribute vec3 customPos; // 目标(星球)位置
+        attribute float randomScale;
 
         uniform float uTime;
-        uniform float uFist; // 0=散开, 1=聚合
+        uniform float uFist; // 0=Mist, 1=Form
         
         varying float vAlpha;
 
         void main() {
-            vec3 p = position; // 这里的 position 是 BufferGeometry 的初始位置
+            vec3 p = position; // 这里的 position 是随机的扩散位置(Mist)
             
-            // --- 粒子动态 ---
-            
-            // 1. 弥散状态 (Mist): 基于 customPos 向外随机扩散
-            vec3 mistPos = customPos + normalize(customPos) * (15.0 * randomness);
-            
-            // 2. 实体状态 (Solid): 回归 customPos (球体表面)
-            vec3 solidPos = customPos;
+            // 1. 动态位置计算
+            // 弥散状态: 使用 position (原本是随机的) + 巨大的正弦波浮动
+            vec3 mistPos = position;
+            mistPos.x += sin(uTime * 0.3 + randomScale * 10.0) * 5.0;
+            mistPos.y += cos(uTime * 0.2 + randomScale * 20.0) * 5.0;
 
-            // 3. 混合插值
-            vec3 finalPos = mix(mistPos, solidPos, uFist);
+            // 实体状态: 使用 customPos (精确的球体表面) + 微小的呼吸
+            vec3 formPos = customPos;
+            formPos *= 1.0 + sin(uTime * 1.0 + randomScale * 100.0) * 0.01; // 微弱呼吸
 
-            // 4. 添加微小的呼吸浮动 (一直存在)
-            float floatAmp = 0.5 * (1.0 - uFist * 0.8); // 实体状态浮动小
-            finalPos.x += sin(uTime * 0.5 + randomness * 10.0) * floatAmp;
-            finalPos.y += cos(uTime * 0.3 + randomness * 20.0) * floatAmp;
-            finalPos.z += sin(uTime * 0.4 + randomness * 30.0) * floatAmp;
+            // 混合
+            vec3 finalPos = mix(mistPos, formPos, uFist);
 
             vec4 mvPosition = modelViewMatrix * vec4(finalPos, 1.0);
             
-            // 5. 大小处理
-            // 实体状态粒子小而密，弥散状态大而虚
-            float finalSize = size * (2.0 - uFist); 
-            gl_PointSize = finalSize * (200.0 / -mvPosition.z);
+            // 2. 大小计算 (透视)
+            // 实体状态下，粒子稍微变小变密
+            float currentSize = size * (2.5 - uFist * 1.5);
+            gl_PointSize = currentSize * (200.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
 
-            // 6. 透明度处理
-            vAlpha = 0.4 + uFist * 0.6; // 实体时更不透明
+            // 3. 透明度
+            // 实体状态更实(1.0)，弥散状态更虚(0.3)
+            vAlpha = 0.3 + uFist * 0.7;
         }
     </script>
 
     <script type="x-shader/x-fragment" id="fShader">
         uniform sampler2D uTexture;
         uniform vec3 uColor;
-        
         varying float vAlpha;
 
         void main() {
-            // 直接读贴图，绝对没有方块
+            // 读取纹理 alpha
             vec4 tex = texture2D(uTexture, gl_PointCoord);
-            if(tex.a < 0.05) discard;
             
-            gl_FragColor = vec4(uColor, vAlpha * tex.a);
+            // 颜色叠加：粒子颜色 * 纹理亮度 * 透明度
+            gl_FragColor = vec4(uColor, vAlpha * tex.r); 
         }
     </script>
 
     <script>
-        // --- Base64 圆形光点贴图 (解决方块问题的终极杀器) ---
-        // 这是一个柔和的白色光晕 PNG 图片的 Base64 编码
-        const PARTICLE_PNG = "data:image/png;base64,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";
-
-        // --- 数据配置 ---
+        // --- 莫兰迪/低饱和色系 ---
         const DB = [
-            { name: "Sun", type: "Star", color: [1.0, 0.9, 0.7], r: 12, d: 0, s: 0 },
-            { name: "Mercury", type: "Terrestrial", color: [0.7, 0.7, 0.7], r: 2, d: 25, s: 0.8 },
-            { name: "Venus", type: "Terrestrial", color: [0.8, 0.7, 0.5], r: 3.5, d: 40, s: 0.6 },
-            { name: "Earth", type: "Terrestrial", color: [0.3, 0.5, 0.8], r: 3.8, d: 60, s: 0.5 },
-            { name: "Mars", type: "Terrestrial", color: [0.8, 0.4, 0.3], r: 2.5, d: 80, s: 0.4 },
-            { name: "Jupiter", type: "Gas Giant", color: [0.7, 0.65, 0.5], r: 9, d: 110, s: 0.2 },
-            { name: "Saturn", type: "Gas Giant", color: [0.8, 0.75, 0.6], r: 8, d: 150, s: 0.15, ring: true },
-            { name: "Uranus", type: "Ice Giant", color: [0.6, 0.8, 0.8], r: 6, d: 190, s: 0.1 },
-            { name: "Neptune", type: "Ice Giant", color: [0.4, 0.5, 0.9], r: 6, d: 220, s: 0.08 }
+            { name: "Overview", color: [1,1,1], r: 0, d: 0, s: 0 },
+            { name: "Sun", color: [1.0, 0.9, 0.8], r: 10, d: 0, s: 0, desc: "Main Sequence", data: "1.39M km" },
+            { name: "Mercury", color: [0.7, 0.7, 0.75], r: 2, d: 20, s: 0.5, desc: "Rocky World", data: "4879 km" },
+            { name: "Venus", color: [0.85, 0.8, 0.7], r: 3.5, d: 32, s: 0.4, desc: "Thick Atmosphere", data: "12104 km" },
+            { name: "Earth", color: [0.3, 0.5, 0.7], r: 3.8, d: 48, s: 0.3, desc: "Blue Marble", data: "12742 km" },
+            { name: "Mars", color: [0.8, 0.45, 0.4], r: 2.5, d: 62, s: 0.25, desc: "Red Planet", data: "6779 km" },
+            { name: "Jupiter", color: [0.75, 0.7, 0.6], r: 9, d: 85, s: 0.15, desc: "Gas Giant", data: "139820 km" },
+            { name: "Saturn", color: [0.8, 0.75, 0.65], r: 8, d: 110, s: 0.12, ring: true, desc: "Ring System", data: "116460 km" },
+            { name: "Uranus", color: [0.65, 0.8, 0.85], r: 6, d: 135, s: 0.1, desc: "Ice Giant", data: "50724 km" },
+            { name: "Neptune", color: [0.35, 0.45, 0.8], r: 6, d: 155, s: 0.08, desc: "Windy World", data: "49244 km" }
         ];
 
-        // --- 全局变量 ---
         let scene, camera, renderer, controls;
-        let pGroups = []; // 存储行星组 {mesh, pivot, speed, dist, name}
-        let activeIdx = -1; // -1 = Overview
         let uniforms;
+        let planets = []; // { mesh, pivot, speed, ... }
+        let activeIdx = -1; // -1 Overview
         let state = { fist: 0.0, targetFist: 0.0 };
 
-        // --- 初始化 ---
-        document.getElementById('btn-init').addEventListener('click', () => {
-            document.getElementById('start-screen').style.opacity = 0;
-            setTimeout(() => document.getElementById('start-screen').style.display = 'none', 500);
-            initVideo();
-            init3D();
+        // --- 核心：程序化生成光晕纹理 (解决黑屏/方块) ---
+        function createGlowTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // 黑底
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0,0,64,64);
+            
+            // 白色径向渐变
+            const grad = ctx.createRadialGradient(32,32,0, 32,32,32);
+            grad.addColorStop(0, '#ffffff'); // 中心白
+            grad.addColorStop(0.3, 'rgba(255,255,255,0.2)'); // 中间淡
+            grad.addColorStop(1, '#000000'); // 边缘黑
+            
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,64,64);
+            
+            const tex = new THREE.CanvasTexture(canvas);
+            return tex;
+        }
+
+        document.getElementById('btn-start').addEventListener('click', () => {
+            document.getElementById('cover').style.opacity = 0;
+            setTimeout(() => document.getElementById('cover').style.display = 'none', 800);
+            try {
+                initVideo();
+                init3D();
+            } catch(e) {
+                console.error(e);
+                alert("Initialize failed. Check console.");
+            }
         });
 
         function init3D() {
             const container = document.getElementById('canvas-container');
             
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x050505, 0.001);
+            scene.fog = new THREE.FogExp2(0x000000, 0.002);
 
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 2000);
-            camera.position.set(0, 100, 200);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 100, 180);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.setClearColor(0x050505);
+            renderer.setClearColor(0x000000); // 明确设置黑底
             container.appendChild(renderer.domElement);
 
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.enablePan = false; 
-            controls.minDistance = 10;
-            controls.maxDistance = 500;
+            controls.enablePan = false;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.5;
+            controls.maxDistance = 400;
 
-            // 加载纹理
-            const loader = new THREE.TextureLoader();
-            const texture = loader.load(PARTICLE_PNG);
-
+            // 全局变量
             uniforms = {
                 uTime: { value: 0 },
                 uFist: { value: 0.0 },
-                uTexture: { value: texture }
+                uTexture: { value: createGlowTexture() }
             };
 
             createStars();
-            createSolarSystem();
+            createSystem();
             createUI();
             
             animate();
             window.addEventListener('resize', onResize);
         }
 
-        // --- 创建行星系统 ---
-        function createSolarSystem() {
+        function createSystem() {
             DB.forEach((d, i) => {
+                if(i === 0) return; // Skip Overview data entry
+
                 const pivot = new THREE.Group();
                 scene.add(pivot);
 
-                // 创建粒子本体
-                const count = d.name === "Sun" ? 4000 : 1500;
+                // 粒子数量：精致感
+                const count = d.name === "Sun" ? 5000 : 2000;
+                
                 const geo = new THREE.BufferGeometry();
-                const pos = []; // 初始位置（用于 BufferAttribute）
-                const customPos = []; // 目标球体位置
-                const randomness = []; // 随机因子
+                const mistPos = [];   // 属性 position: 随机扩散位置
+                const formPos = [];   // 属性 customPos: 球体表面位置
+                const scales = [];
 
                 for(let k=0; k<count; k++) {
-                    // 球体分布
-                    const r = d.r * Math.pow(Math.random(), 0.5); 
+                    // 1. 计算形态位置 (Form)
+                    const r = d.r * Math.cbrt(Math.random()); // 均匀球体
                     const theta = Math.random() * Math.PI * 2;
                     const phi = Math.acos(Math.random() * 2 - 1);
                     
-                    const x = r * Math.sin(phi) * Math.cos(theta);
-                    const y = r * Math.sin(phi) * Math.sin(theta);
-                    const z = r * Math.cos(phi);
-                    
-                    pos.push(x, y, z); // 必须填充 position attribute 即使我们在 shader 里不用它
-                    customPos.push(x, y, z);
-                    randomness.push(Math.random());
+                    const fx = r * Math.sin(phi) * Math.cos(theta);
+                    const fy = r * Math.sin(phi) * Math.sin(theta);
+                    const fz = r * Math.cos(phi);
+                    formPos.push(fx, fy, fz);
+
+                    // 2. 计算弥散位置 (Mist) - 围绕轨道的一团云
+                    // 范围比星球大5-8倍
+                    const spread = d.r * 6.0;
+                    mistPos.push(
+                        (Math.random()-0.5) * spread,
+                        (Math.random()-0.5) * spread,
+                        (Math.random()-0.5) * spread
+                    );
+
+                    scales.push(Math.random());
                 }
 
-                // 土星环
+                // 环
                 if(d.ring) {
-                    for(let k=0; k<800; k++) {
-                         const r = d.r * (1.5 + Math.random());
-                         const theta = Math.random() * Math.PI * 2;
-                         const x = r * Math.cos(theta);
-                         const y = (Math.random()-0.5) * 0.2;
-                         const z = r * Math.sin(theta);
-                         pos.push(x,y,z);
-                         customPos.push(x,y,z);
-                         randomness.push(Math.random());
+                    for(let k=0; k<1000; k++) {
+                        const r = d.r * (1.6 + Math.random() * 1.5);
+                        const theta = Math.random() * Math.PI * 2;
+                        const x = r * Math.cos(theta);
+                        const y = (Math.random()-0.5) * 0.2;
+                        const z = r * Math.sin(theta);
+                        
+                        formPos.push(x, y, z);
+                        mistPos.push(x + (Math.random()-0.5)*5, y + (Math.random()-0.5)*5, z + (Math.random()-0.5)*5);
+                        scales.push(Math.random());
                     }
                 }
 
-                geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-                geo.setAttribute('customPos', new THREE.Float32BufferAttribute(customPos, 3));
-                geo.setAttribute('randomness', new THREE.Float32BufferAttribute(randomness, 1));
-                // 统一大小
-                const sizeArr = new Float32Array(pos.length / 3).fill(d.name==="Sun"?2.0:1.5);
-                geo.setAttribute('size', new THREE.Float32BufferAttribute(sizeArr, 1));
+                geo.setAttribute('position', new THREE.Float32BufferAttribute(mistPos, 3));
+                geo.setAttribute('customPos', new THREE.Float32BufferAttribute(formPos, 3));
+                geo.setAttribute('randomScale', new THREE.Float32BufferAttribute(scales, 1));
+                
+                // 统一大小属性
+                const sizes = new Float32Array(mistPos.length/3).fill(d.name==="Sun"?2.5:1.8);
+                geo.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
 
-                // 材质
                 const mat = new THREE.ShaderMaterial({
                     uniforms: {
                         ...uniforms,
@@ -284,29 +312,28 @@
                     },
                     vertexShader: document.getElementById('vShader').textContent,
                     fragmentShader: document.getElementById('fShader').textContent,
-                    transparent: true,
                     blending: THREE.AdditiveBlending,
-                    depthWrite: false
+                    depthWrite: false, // 必须关闭深度写入，否则会挡住后面的粒子
+                    transparent: true
                 });
 
                 const mesh = new THREE.Points(geo, mat);
-                mesh.position.x = d.d; // 放置在轨道上
+                mesh.position.x = d.d; 
                 pivot.add(mesh);
 
-                // 保存引用
-                pGroups.push({ 
-                    pivot: pivot, 
-                    mesh: mesh, 
-                    speed: d.s * 0.002, // 公转速度
+                planets.push({
                     name: d.name,
-                    dist: d.d
+                    pivot: pivot,
+                    mesh: mesh,
+                    speed: d.s * 0.002, // 公转速度
+                    data: d // 原数据
                 });
 
-                // 极简轨道线
+                // 轨道线 (极细)
                 if(d.d > 0) {
-                    const orbitGeo = new THREE.RingGeometry(d.d-0.1, d.d+0.1, 128);
+                    const orbitGeo = new THREE.RingGeometry(d.d-0.05, d.d+0.05, 128);
                     orbitGeo.rotateX(-Math.PI/2);
-                    const orbitMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent:true, opacity:0.03, side:THREE.DoubleSide });
+                    const orbitMat = new THREE.MeshBasicMaterial({ color: 0x444444, side: THREE.DoubleSide, transparent:true, opacity:0.15 });
                     scene.add(new THREE.Mesh(orbitGeo, orbitMat));
                 }
             });
@@ -316,140 +343,129 @@
             const geo = new THREE.BufferGeometry();
             const pos = [];
             for(let i=0; i<2000; i++) {
-                const r = 500 + Math.random()*300;
+                const r = 400 + Math.random()*200;
                 const theta = Math.random()*Math.PI*2;
                 const phi = Math.acos(Math.random()*2-1);
                 pos.push(r*Math.sin(phi)*Math.cos(theta), r*Math.sin(phi)*Math.sin(theta), r*Math.cos(phi));
             }
             geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-            const mat = new THREE.PointsMaterial({color:0x444444, size:1.5, transparent:true, opacity:0.5});
+            const mat = new THREE.PointsMaterial({color:0x333333, size:2, sizeAttenuation:false});
             scene.add(new THREE.Points(geo, mat));
         }
 
-        // --- 核心逻辑循环 ---
         function animate() {
             requestAnimationFrame(animate);
             const time = performance.now() * 0.001;
             uniforms.uTime.value = time;
             TWEEN.update();
 
-            // 手势平滑
+            // 插值手势
             state.fist += (state.targetFist - state.fist) * 0.05;
             uniforms.uFist.value = state.fist;
 
-            // 1. 公转逻辑
-            pGroups.forEach(g => {
-                g.pivot.rotation.y += g.speed;
+            // 1. 公转
+            planets.forEach(p => {
+                p.pivot.rotation.y += p.speed;
             });
 
-            // 2. 镜头锁定逻辑 (修复：跟随运动的行星)
+            // 2. 镜头死锁 (关键修复)
             if (activeIdx !== -1) {
-                const target = pGroups[activeIdx];
+                // pMeshes 数组顺序: Sun, Mercury... 对应 DB 索引 1...
+                // DB[0]是Overview，所以 planets[0] 是 Sun
+                const target = planets[activeIdx - 1]; 
                 
-                // 获取行星当前的绝对世界坐标
-                const worldPos = new THREE.Vector3();
-                target.mesh.getWorldPosition(worldPos);
-
-                // 强制让 Controls 的中心死死咬住行星
-                controls.target.copy(worldPos);
-                
-                // 这里我们不强制修改 camera.position，
-                // 这样用户就可以在行星运动时，依然自由旋转观察它，
-                // 而 OrbitControls 会自动处理“围绕移动中的物体旋转”的逻辑。
+                if (target && target.mesh) {
+                    const worldPos = new THREE.Vector3();
+                    target.mesh.getWorldPosition(worldPos);
+                    
+                    // 强制锁定 OrbitControls 中心
+                    controls.target.copy(worldPos);
+                    
+                    // 注意：不强制设 camera position，只设 target
+                    // 这样行星会永远在画面中心，而背景在动
+                }
             }
 
             controls.update();
             renderer.render(scene, camera);
         }
 
-        function focusIndex(index) {
+        function focusView(index) {
             activeIdx = index;
-            document.querySelectorAll('.nav-btn').forEach((b, i) => {
-                b.classList.toggle('active', i === index);
-            });
-
-            const info = document.getElementById('info');
+            document.querySelectorAll('.btn').forEach((b, i) => b.classList.toggle('active', i===index));
             
-            if (index === -1) {
-                // Overview
+            const info = document.getElementById('planet-info');
+            
+            if (index === 0) { // Overview
+                activeIdx = -1; // Reset
                 info.classList.remove('show');
                 controls.autoRotate = true;
-                // 拉远
-                new TWEEN.Tween(camera.position).to({x:0, y:100, z:200}, 1500).easing(TWEEN.Easing.Quadratic.Out).start();
+                
+                // 飞回全景
+                new TWEEN.Tween(camera.position).to({x:0, y:100, z:180}, 1500).easing(TWEEN.Easing.Cubic.Out).start();
                 new TWEEN.Tween(controls.target).to({x:0, y:0, z:0}, 1500).start();
             } else {
-                // Focus
                 controls.autoRotate = false;
                 const d = DB[index];
                 
-                document.getElementById('ui-name').innerText = d.name.toUpperCase();
-                document.getElementById('ui-type').innerText = d.type;
-                document.getElementById('ui-d').innerText = `DIA: ${Math.floor(d.r * 1000)}`; 
-                document.getElementById('ui-t').innerText = `DIST: ${d.d}`;
+                document.getElementById('p-name').innerText = d.name.toUpperCase();
+                document.getElementById('p-desc').innerText = d.desc;
+                document.getElementById('p-data').innerText = `DATA: ${d.data}`;
                 info.classList.add('show');
                 
-                // 镜头缩放范围调整
-                controls.minDistance = d.r * 2.5; 
+                // 调整缩放限制
+                controls.minDistance = d.r * 2.0; 
+                
+                // 飞向大致位置 (后续由 animate 锁定)
+                const target = planets[index-1];
+                const worldPos = new THREE.Vector3();
+                target.mesh.getWorldPosition(worldPos);
+                
+                // 计算一个偏移位置
+                const offset = worldPos.clone().normalize().multiplyScalar(d.r * 5 + 20);
+                offset.y += 10;
+                
+                // 稍微飞近一点，但不完全覆盖位置，保留 Orbit 能力
             }
         }
 
-        // --- UI ---
         function createUI() {
             const nav = document.getElementById('nav');
-            
-            // Overview Btn
-            const btnAll = document.createElement('button');
-            btnAll.className = 'nav-btn';
-            btnAll.innerText = "SYSTEM VIEW";
-            btnAll.onclick = () => focusIndex(-1);
-            nav.appendChild(btnAll);
-
             DB.forEach((d, i) => {
                 const btn = document.createElement('button');
-                btn.className = 'nav-btn';
+                btn.className = 'btn';
                 btn.innerText = d.name;
-                btn.onclick = () => focusIndex(i);
+                if(i===0) btn.classList.add('active');
+                btn.onclick = () => focusView(i);
                 nav.appendChild(btn);
             });
         }
-
         function onResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // --- MediaPipe Hand Tracking ---
+        // --- Hand Tracking ---
         async function initVideo() {
             const video = document.getElementById('input-video');
             const dot = document.getElementById('cam-dot');
-            
             const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
             hands.setOptions({maxNumHands: 1, minDetectionConfidence: 0.5});
-            
             hands.onResults(res => {
                 if(res.multiHandLandmarks.length > 0) {
                     dot.classList.add('on');
                     const lm = res.multiHandLandmarks[0];
-                    const wrist = lm[0];
-                    const tip = lm[12];
-                    const base = lm[9];
-                    
-                    const dTip = Math.hypot(tip.x-wrist.x, tip.y-wrist.y);
-                    const dBase = Math.hypot(base.x-wrist.x, base.y-wrist.y);
-                    
-                    // 握拳 = 1 (Solid), 张开 = 0 (Mist)
-                    if(dTip < dBase * 1.1) state.targetFist = 1.0;
-                    else state.targetFist = 0.0;
+                    const wrist = lm[0]; const tip = lm[12]; const base = lm[9];
+                    if (Math.hypot(tip.x-wrist.x, tip.y-wrist.y) < Math.hypot(base.x-wrist.x, base.y-wrist.y)*1.1)
+                        state.targetFist = 1.0;
+                    else 
+                        state.targetFist = 0.0;
                 } else {
                     dot.classList.remove('on');
                 }
             });
-
-            const cam = new Camera(video, {
-                onFrame: async () => { await hands.send({image: video}); },
-                width: 320, height: 240
-            });
+            const cam = new Camera(video, { onFrame: async () => { await hands.send({image: video}); }, width: 320, height: 240 });
             cam.start();
         }
     </script>
