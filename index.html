@@ -286,11 +286,6 @@ function createParticleSystem(){
       });
     }
     for (let i=0;i<cloudCount;i++){
-      const noise = Math.sin(now * 0.001 + pd.orbitAngle * 10.0) * 0.02;
-      const yNoise = Math.cos(now * 0.0012 + pd.orbitAngle * 8.0) * 0.015;
-      const x = center.x + rx + noise;
-      const y = center.y + localY + yNoise;
-      const z = center.z + rz + noise * 0.8;
       const radius = p.size * (1.0 + Math.random()*2.0);
       const local = randomPointInSphere(radius);
       const color = cloudBase.clone().multiplyScalar(0.7 + Math.random()*0.5);
