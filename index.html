@@ -3,49 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Solar Dust XXI - Robust Start</title>
+    <title>Solar Dust XIX - Full UI Control</title>
     <style>
-        :root{--bg:#000;--p:rgba(20,20,20,0.6);--b:rgba(255,255,255,0.15);--w:#fff}
-        body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);overflow:hidden;font-family:"Segoe UI",sans-serif;user-select:none;-webkit-user-select:none}
-        #canvas-container{position:absolute;inset:0;z-index:1}
-        #input-video{position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1}
-        .ui{position:absolute;z-index:10;width:100%;height:100%;pointer-events:none;color:#ccc}
-        .panel{pointer-events:auto;background:var(--p);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--b);border-radius:6px}
+        :root { --bg: #000; --panel: rgba(20,20,20,0.6); --border: rgba(255,255,255,0.15); --accent: #fff; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: "Segoe UI", sans-serif; -webkit-user-select: none; user-select: none; }
         
-        /* 导航 */
-        #nav{position:absolute;top:20px;left:20px;width:130px;max-height:50vh;overflow-y:auto;padding:5px}
-        .btn{display:block;width:100%;background:0;border:0;color:#888;text-align:left;padding:10px 8px;cursor:pointer;font-size:11px;transition:0.2s;border-radius:4px;border-bottom:1px solid rgba(255,255,255,0.05)}
-        .btn.active{color:var(--w);font-weight:700;background:rgba(255,255,255,0.1);border-left:3px solid var(--w)}
+        #canvas-container { position: absolute; inset: 0; z-index: 1; }
+        #input-video { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; z-index: -1; }
+
+        /* UI 通用 */
+        .ui { position: absolute; z-index: 10; width: 100%; height: 100%; pointer-events: none; color: #ccc; }
+        .panel { pointer-events: auto; background: var(--panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 6px; transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1); }
+
+        /* --- 1. 左上：导航 (新增折叠功能) --- */
+        #nav { 
+            position: absolute; top: 20px; left: 20px; width: 140px; 
+            max-height: 50vh; overflow: hidden; /* 关键：隐藏溢出 */
+            display: flex; flex-direction: column;
+        }
         
-        /* 语言 */
-        #lang-box{position:absolute;top:20px;right:20px;pointer-events:auto;display:flex;background:var(--p);padding:4px;border-radius:20px;border:1px solid var(--b)}
-        .l-btn{background:0;border:0;color:#888;font-size:10px;cursor:pointer;padding:6px 10px;border-radius:16px;position:relative;z-index:2;transition:0.3s}
-        .l-btn.active{color:#000;font-weight:700}
-        #l-slider{position:absolute;top:4px;left:4px;height:calc(100% - 8px);background:var(--w);border-radius:16px;z-index:1;transition:0.3s cubic-bezier(0.25,0.8,0.25,1);width:0}
+        /* 导航折叠状态 */
+        #nav.collapsed {
+            width: 36px; height: 36px; overflow: hidden;
+            background: rgba(0,0,0,0.8); border-color: rgba(255,255,255,0.2);
+        }
+        #nav.collapsed #nav-content { opacity: 0; pointer-events: none; }
+        #nav.collapsed #nav-toggle { transform: rotate(180deg); }
 
-        /* 仪表盘 */
-        #hud{position:absolute;bottom:30px;left:50%;transform:translate(-50%);width:280px;background:rgba(0,0,0,0.8);border:1px solid var(--b);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;backdrop-filter:blur(5px)}
-        .row{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-family:monospace}
-        .led{width:6px;height:6px;border-radius:50%;background:#333;transition:0.3s}
-        .led.on{background:#0f0;box-shadow:0 0 8px #0f0} .led.wait{background:#ff0} .led.err{background:#f00}
-        #g-track{width:100%;height:4px;background:#222;border-radius:2px;overflow:hidden;margin-top:5px}
-        #g-fill{width:0%;height:100%;background:#0f0;transition:width 0.1s}
+        /* 导航内容容器 */
+        #nav-content {
+            padding: 5px; overflow-y: auto; transition: opacity 0.3s;
+            margin-top: 25px; /* 给顶部按钮留空间 */
+            height: 100%;
+        }
 
-        /* 详情 */
-        #info{position:absolute;bottom:140px;right:20px;width:220px;padding:15px;transition:0.4s;opacity:0;transform:translateY(20px)}
-        #info.show{opacity:1;transform:translateY(0)}
-        #info.collapsed{height:30px;padding:0 15px;width:auto;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center}
-        #info.collapsed .content{display:none} 
-        .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:monospace;font-size:10px;color:#aaa;margin-top:15px}
-        .item span{display:block;color:#666;font-size:9px;margin-bottom:2px}
-        #toggle{position:absolute;top:8px;right:8px;background:0;border:0;color:#fff;font-size:12px;cursor:pointer}
+        /* 导航切换按钮 */
+        #nav-toggle {
+            position: absolute; top: 8px; left: 8px; width: 20px; height: 20px;
+            background: none; border: none; color: #fff; cursor: pointer; font-size: 10px;
+            transition: transform 0.3s; z-index: 5; display: flex; align-items: center; justify-content: center;
+        }
 
-        /* 启动 */
-        #cover{position:fixed;inset:0;background:#000;z-index:100;display:flex;flex-direction:column;justify-content:center;align-items:center;transition:0.5s}
-        #start{margin-top:30px;background:0;border:1px solid #444;color:#fff;padding:12px 50px;letter-spacing:6px;font-size:12px;cursor:pointer;border-radius:4px;transition:0.2s}
-        #start:hover{background:rgba(255,255,255,0.2)}
-        #msg-log{color:#f44;font-size:10px;margin-top:10px;max-width:80%;text-align:center;display:none}
+        .btn {
+            display: block; width: 100%; background: none; border: none; position: relative;
+            color: #888; text-align: left; padding: 10px 8px; cursor: pointer;
+            font-size: 12px; transition: 0.2s; border-radius: 4px; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .btn.active { color: #fff; font-weight: bold; background: rgba(255,255,255,0.1); border-left: 3px solid #fff; }
+
+        /* --- 2. 右上：语言 --- */
+        #lang-container {
+            position: absolute; top: 20px; right: 20px; 
+            pointer-events: auto; display: flex; align-items: center;
+            background: var(--panel); padding: 4px; border-radius: 20px; border: 1px solid var(--border);
+        }
+        .lang-btn {
+            background: none; border: none; color: #888; font-size: 10px; cursor: pointer; 
+            padding: 6px 10px; border-radius: 16px; position: relative; z-index: 2; transition: color 0.3s;
+        }
+        .lang-btn.active { color: #000; font-weight: bold; }
+        #lang-slider {
+            position: absolute; top: 4px; left: 4px; height: calc(100% - 8px); 
+            background: #fff; border-radius: 16px; z-index: 1; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); width: 0;
+        }
+
+        /* --- 3. 底部：仪表盘 --- */
+        #hud-container {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 280px; background: rgba(0,0,0,0.8); border: 1px solid var(--border);
+            border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px;
+            backdrop-filter: blur(5px); pointer-events: none;
+        }
+        .hud-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-family: monospace; letter-spacing: 1px; }
+        .status-box { display: flex; gap: 15px; }
+        .indicator { display: flex; align-items: center; gap: 6px; }
+        .led { width: 6px; height: 6px; border-radius: 50%; background: #333; transition: 0.3s; }
+        .led.on { background: #0f0; box-shadow: 0 0 8px #0f0; }
+        .led.wait { background: #ff0; }
+        #gesture-track { width: 100%; height: 4px; background: #222; border-radius: 2px; overflow: hidden; margin-top: 5px; }
+        #gesture-fill { width: 0%; height: 100%; background: #0f0; transition: width 0.1s; }
+
+        /* --- 4. 右下：详情面板 (折叠) --- */
+        #info-card {
+            position: absolute; bottom: 140px; right: 20px; width: 220px;
+            padding: 15px; opacity: 0; transform: translateY(20px); height: auto; overflow: hidden;
+        }
+        #info-card.show { opacity: 1; transform: translateY(0); }
+        #info-card.collapsed { 
+            height: 30px; padding: 0 15px; width: 80px; bottom: 140px; right: 20px;
+            background: rgba(0,0,0,0.8); border-color: rgba(255,255,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+        }
+        #info-card.collapsed .info-content { opacity: 0; pointer-events: none; }
+        #info-card.collapsed #info-toggle { transform: rotate(180deg); }
+
+        .info-content { transition: opacity 0.3s; }
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: monospace; font-size: 10px; color: #aaa; margin-top: 15px; }
+        .data-item span { display: block; color: #666; font-size: 9px; margin-bottom: 2px; }
+
+        #info-toggle {
+            position: absolute; top: 10px; right: 10px; width: 20px; height: 20px;
+            background: none; border: none; color: #fff; cursor: pointer; font-size: 12px;
+            transition: transform 0.3s; z-index: 5;
+        }
+        #info-toggle-text { display: none; font-size: 10px; letter-spacing: 1px; color: #fff; }
+        #info-card.collapsed #info-toggle-text { display: block; }
+        #info-card.collapsed #info-toggle { top: 6px; right: 5px; }
+
+        /* 启动页 */
+        #cover { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.8s; }
+        #btn-start { margin-top: 30px; background: transparent; border: 1px solid #444; color: #fff; padding: 12px 50px; letter-spacing: 6px; cursor: pointer; font-size: 12px; border-radius: 4px; transition: 0.3s; }
+        #btn-start:hover { border-color: #fff; background: rgba(255,255,255,0.1); }
+        #error-msg { color: #f44; font-size: 11px; margin-top: 15px; display: none; text-align: center; max-width: 80%; }
     </style>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
@@ -55,50 +127,59 @@
 <body>
 
     <div id="cover">
-        <div style="font-size:24px;letter-spacing:8px;color:#ddd">SOLAR XXI</div>
-        <div style="font-size:10px;color:#666;margin-top:10px;letter-spacing:2px">ROBUST START</div>
-        <button id="start">ENTER SYSTEM</button>
-        <div id="msg-log"></div>
+        <div style="font-size: 24px; letter-spacing: 8px; color: #ddd; text-align:center;">SOLAR XIX</div>
+        <div style="font-size: 10px; color: #666; margin-top: 10px; letter-spacing: 2px;">FULL UI CONTROL</div>
+        <button id="btn-start">INITIALIZE</button>
+        <div id="error-msg"></div>
     </div>
 
     <div class="ui">
-        <div class="panel" id="nav"></div>
+        <div class="panel" id="nav">
+            <button id="nav-toggle" onclick="toggleNav()">◀</button>
+            <div id="nav-content">
+                </div>
+        </div>
         
-        <div id="lang-box">
-            <div id="l-slider"></div>
-            <button class="l-btn active" d-l="CN">CN</button>
-            <button class="l-btn" d-l="EN">EN</button>
-            <button class="l-btn" d-l="DE">DE</button>
-            <button class="l-btn" d-l="FR">FR</button>
-            <button class="l-btn" d-l="ES">ES</button>
-            <button class="l-btn" d-l="IT">IT</button>
+        <div id="lang-container">
+            <div id="lang-slider"></div>
+            <button class="lang-btn active" data-lang="CN">CN</button>
+            <button class="lang-btn" data-lang="EN">EN</button>
+            <button class="lang-btn" data-lang="DE">DE</button>
+            <button class="lang-btn" data-lang="FR">FR</button>
+            <button class="lang-btn" data-lang="ES">ES</button>
+            <button class="lang-btn" data-lang="IT">IT</button>
         </div>
 
-        <div id="hud">
-            <div class="row">
-                <span id="txt-sys">SYSTEM STATUS</span>
-                <span id="pos-debug" style="color:#666">0, 0</span>
+        <button onclick="window.location.href='page2.html'" style="position:absolute; top:70px; right:20px; pointer-events:auto; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; font-size:10px; padding:6px 12px; border-radius:15px; cursor:pointer;">
+            LINK ➔
+        </button>
+
+        <div id="hud-container">
+            <div class="hud-row" style="border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:5px;">
+                <span style="color:#666;">SYSTEM STATUS</span>
+                <span id="pos-debug" style="color:#666;">0, 0</span>
             </div>
-            <div class="row">
-                <div style="display:flex;align-items:center;gap:5px"><div class="led" id="led-c"></div><span id="t-cam">CAM</span></div>
-                <div style="display:flex;align-items:center;gap:5px"><div class="led" id="led-h"></div><span id="t-hand">HAND</span></div>
+            <div class="status-box">
+                <div class="indicator"><div class="led" id="led-cam"></div><span id="txt-cam">CAM</span></div>
+                <div class="indicator"><div class="led" id="led-hand"></div><span id="txt-hand">HAND</span></div>
             </div>
-            <div class="row" style="margin-top:5px">
-                <span id="t-mode">MODE:</span><span style="color:#fff;font-weight:700" id="val-act">--</span>
+            <div class="hud-row" style="margin-top:8px;">
+                <span class="hud-label">MODE:</span><span class="hud-val" id="val-action">--</span>
             </div>
-            <div id="g-track"><div id="g-fill"></div></div>
+            <div id="gesture-track"><div id="gesture-fill"></div></div>
         </div>
 
-        <div class="panel" id="info">
-            <button id="toggle" onclick="toggleInfo()">-</button>
-            <div class="content">
-                <h1 id="p-n" style="margin:0;font-weight:100;letter-spacing:2px;font-size:24px;color:#fff">EARTH</h1>
-                <span id="p-d" style="font-size:10px;color:#888;text-transform:uppercase;display:block;margin-bottom:15px">Habitable</span>
-                <div class="grid">
-                    <div class="item"><span id="l-dia">DIA</span><div id="v-dia">0</div></div>
-                    <div class="item"><span id="l-tmp">TMP</span><div id="v-tmp">0</div></div>
-                    <div class="item"><span id="l-gra">GRAV</span><div id="v-gra">0</div></div>
-                    <div class="item"><span id="l-day">ROT</span><div id="v-day">0</div></div>
+        <div class="panel" id="info-card">
+            <button id="info-toggle" onclick="toggleInfo()">▼</button>
+            <span id="info-toggle-text">INFO</span>
+            <div class="info-content">
+                <h1 id="p-name" style="margin:0; font-weight:100; letter-spacing:2px; font-size:24px; color:#fff;">EARTH</h1>
+                <span id="p-desc" style="font-size:10px; color:#888; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:15px;">Habitable Zone</span>
+                <div class="data-grid">
+                    <div class="data-item"><span>DIA</span><div id="d-dia">12742</div></div>
+                    <div class="data-item"><span>TMP</span><div id="d-tmp">15°C</div></div>
+                    <div class="data-item"><span>GRAV</span><div id="d-grav">9.8</div></div>
+                    <div class="data-item"><span>ROT</span><div id="d-day">24h</div></div>
                 </div>
             </div>
         </div>
@@ -107,294 +188,315 @@
     <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
     <div id="canvas-container"></div>
 
-    <script type="x-shader/x-vertex" id="vs">
-        attribute float size; attribute vec3 mo; attribute float rs;
-        uniform float time; uniform float disp; varying float vA;
+    <script type="x-shader/x-vertex" id="vShader">
+        attribute float size; attribute vec3 mistOffset; attribute float randomScale;
+        uniform float uTime; uniform float uDisperse; varying float vAlpha;
         void main() {
-            vec3 pos = position;
-            vec3 dPos = pos + mo * (1.0 + sin(time*0.5 + rs)*0.2);
-            dPos.x += sin(time*0.3 + rs*10.0)*3.0; dPos.y += cos(time*0.2 + rs*20.0)*3.0; dPos.z += sin(time*0.4 + rs*30.0)*3.0;
-            vec3 fPos = mix(pos, dPos, disp);
-            fPos *= 1.0 + sin(time*2.0 + rs*10.0)*(0.05*(1.0-disp));
-            vec4 mv = modelViewMatrix * vec4(fPos, 1.0);
-            gl_PointSize = size * (1.0 + disp * 2.5) * (200.0 / -mv.z);
-            gl_Position = projectionMatrix * mv;
-            vA = 0.9 - disp * 0.6;
+            vec3 solidPos = position;
+            vec3 dispersedPos = solidPos + mistOffset * (1.0 + sin(uTime*0.5 + randomScale)*0.2);
+            dispersedPos.x += sin(uTime*0.3 + randomScale*10.0)*3.0;
+            dispersedPos.y += cos(uTime*0.2 + randomScale*20.0)*3.0;
+            dispersedPos.z += sin(uTime*0.4 + randomScale*30.0)*3.0;
+            
+            vec3 finalPos = mix(solidPos, dispersedPos, uDisperse);
+            float breath = 0.05 * (1.0 - uDisperse);
+            finalPos *= 1.0 + sin(uTime*2.0 + randomScale*10.0)*breath;
+            
+            vec4 mvPosition = modelViewMatrix * vec4(finalPos, 1.0);
+            float currentSize = size * (1.0 + uDisperse * 2.5);
+            gl_PointSize = currentSize * (200.0 / -mvPosition.z);
+            gl_Position = projectionMatrix * mvPosition;
+            vAlpha = 0.9 - uDisperse * 0.6;
         }
     </script>
-    <script type="x-shader/x-fragment" id="fs">
-        uniform sampler2D tex; uniform vec3 col; varying float vA;
+    <script type="x-shader/x-fragment" id="fShader">
+        uniform sampler2D uTexture; uniform vec3 uColor; varying float vAlpha;
         void main() {
-            vec4 t = texture2D(tex, gl_PointCoord);
-            if(t.a < 0.05) discard;
-            gl_FragColor = vec4(col, vA * t.r); 
+            vec4 tex = texture2D(uTexture, gl_PointCoord);
+            if(tex.a < 0.05) discard;
+            gl_FragColor = vec4(uColor, vAlpha * tex.r); 
         }
     </script>
 
     <script>
-        const LANG = {
-            CN: {
-                sys: "星系全览", sun: "太阳", mer: "水星", ven: "金星", ear: "地球", mar: "火星", jup: "木星", sat: "土星", ura: "天王星", nep: "海王星",
-                desc: { sun: "主序星", mer: "岩石世界", ven: "浓厚大气", ear: "蓝色星球", mar: "红色沙漠", jup: "气体巨星", sat: "光环行星", ura: "冰巨星", nep: "蓝色冰球" },
-                lbl: { dia: "直径", tmp: "温度", gra: "重力", day: "自转" },
-                hud: { st: "系统状态", cam: "相机", hand: "手势", m_solid: "实体", m_mist: "星云" }
-            },
-            EN: {
-                sys: "SYSTEM VIEW", sun: "SUN", mer: "MERCURY", ven: "VENUS", ear: "EARTH", mar: "MARS", jup: "JUPITER", sat: "SATURN", ura: "URANUS", nep: "NEPTUNE",
-                desc: { sun: "Main Sequence", mer: "Rocky World", ven: "Thick Cloud", ear: "Blue Marble", mar: "Red Desert", jup: "Gas Giant", sat: "Ringed Jewel", ura: "Ice Giant", nep: "Deep Blue" },
-                lbl: { dia: "DIAMETER", tmp: "TEMP", gra: "GRAVITY", day: "DAY" },
-                hud: { st: "SYSTEM STATUS", cam: "CAM", hand: "HAND", m_solid: "SOLID", m_mist: "MIST" }
-            },
-            DE: {
-                sys: "SYSTEM", sun: "SONNE", mer: "MERKUR", ven: "VENUS", ear: "ERDE", mar: "MARS", jup: "JUPITER", sat: "SATURN", ura: "URANUS", nep: "NEPTUN",
-                desc: { sun: "Hauptreihe", mer: "Felsplanet", ven: "Dichte Wolken", ear: "Der Blaue Planet", mar: "Rote Wüste", jup: "Gasriese", sat: "Ringplanet", ura: "Eisriese", nep: "Blauer Riese" },
-                lbl: { dia: "DURCHMESSER", tmp: "TEMP", gra: "GRAVITATION", day: "TAG" },
-                hud: { st: "STATUS", cam: "KAMERA", hand: "HAND", m_solid: "FEST", m_mist: "NEBEL" }
-            },
-            FR: {
-                sys: "SYSTÈME", sun: "SOLEIL", mer: "MERCURE", ven: "VÉNUS", ear: "TERRE", mar: "MARS", jup: "JUPITER", sat: "SATURNE", ura: "URANUS", nep: "NEPTUNE",
-                desc: { sun: "Séquence Principale", mer: "Monde Rocheux", ven: "Nuages Épais", ear: "Planète Bleue", mar: "Désert Rouge", jup: "Géante Gazeuse", sat: "Planète à Anneaux", ura: "Géante de Glace", nep: "Monde Bleu" },
-                lbl: { dia: "DIAMÈTRE", tmp: "TEMP", gra: "GRAVITÉ", day: "JOUR" },
-                hud: { st: "ÉTAT", cam: "CAMÉRA", hand: "MAIN", m_solid: "SOLIDE", m_mist: "NÉBULEUSE" }
-            },
-            ES: {
-                sys: "SISTEMA", sun: "SOL", mer: "MERCURIO", ven: "VENUS", ear: "TIERRA", mar: "MARTE", jup: "JÚPITER", sat: "SATURNO", ura: "URANO", nep: "NEPTUNO",
-                desc: { sun: "Secuencia Principal", mer: "Mundo Rocoso", ven: "Nubes Espesas", ear: "Planeta Azul", mar: "Desierto Rojo", jup: "Gigante Gaseoso", sat: "Planeta Anillado", ura: "Gigante de Hielo", nep: "Mundo Azul" },
-                lbl: { dia: "DIÁMETRO", tmp: "TEMP", gra: "GRAVEDAD", day: "DÍA" },
-                hud: { st: "ESTADO", cam: "CÁMARA", hand: "MANO", m_solid: "SÓLIDO", m_mist: "NIEBLA" }
-            },
-            IT: {
-                sys: "SISTEMA", sun: "SOLE", mer: "MERCURIO", ven: "VENERE", ear: "TERRA", mar: "MARTE", jup: "GIOVE", sat: "SATURNO", ura: "URANO", nep: "NETTUNO",
-                desc: { sun: "Sequenza Principale", mer: "Mondo Roccioso", ven: "Nubi Dense", ear: "Pianeta Blu", mar: "Deserto Rosso", jup: "Gigante Gassoso", sat: "Pianeta Anellato", ura: "Gigante Ghiacciato", nep: "Mondo Blu" },
-                lbl: { dia: "DIAMETRO", tmp: "TEMP", gra: "GRAVITÀ", day: "GIORNO" },
-                hud: { st: "STATO", cam: "CAMERA", hand: "MANO", m_solid: "SOLIDO", m_mist: "NEBBIA" }
-            }
-        };
+        const LANG={CN:{lbl:{dia:"直径",tmp:"温度",grav:"重力",day:"自转"},sys:"星系全览",sun:"太阳",mer:"水星",ven:"金星",ear:"地球",mar:"火星",jup:"木星",sat:"土星",ura:"天王星",nep:"海王星",desc:{sun:"主序星",mer:"岩石行星",ven:"浓厚大气",ear:"蓝色星球",mar:"红色沙漠",jup:"气体巨星",sat:"光环行星",ura:"冰巨星",nep:"蓝色冰球"},hud:{cam:"相机",hand:"手势",act_form:"实体",act_mist:"星云"}},EN:{lbl:{dia:"DIAMETER",tmp:"TEMP",grav:"GRAVITY",day:"DAY"},sys:"SYSTEM VIEW",sun:"SUN",mer:"MERCURY",ven:"VENUS",ear:"EARTH",mar:"MARS",jup:"JUPITER",sat:"SATURN",ura:"URANUS",nep:"NEPTUNE",desc:{sun:"Main Sequence",mer:"Rocky World",ven:"Thick Atmosphere",ear:"Blue Marble",mar:"Red Desert",jup:"Gas Giant",sat:"Ringed Jewel",ura:"Ice Giant",nep:"Deep Blue"},hud:{cam:"CAM",hand:"HAND",act_form:"FORM",act_mist:"MIST"}}};
+        LANG.DE=LANG.EN; LANG.FR=LANG.EN; LANG.ES=LANG.EN; LANG.IT=LANG.EN; 
 
+        let curLang = 'CN';
         const DB = [
-            { id: "sys", r:0, d:0, s:0, c:[1,1,1] },
-            { id: "sun", r:12, d:0, s:0, c:[1.0,0.85,0.6], dat:{dia:"1.39M km",t:"5500°C",g:"274",day:"25d"} },
-            { id: "mer", r:2.2, d:25, s:0.8, c:[0.7,0.7,0.75], dat:{dia:"4879 km",t:"167°C",g:"3.7",day:"58d"} },
-            { id: "ven", r:3.8, d:40, s:0.6, c:[0.85,0.8,0.65], dat:{dia:"12104 km",t:"464°C",g:"8.87",day:"243d"} },
-            { id: "ear", r:4.0, d:60, s:0.5, c:[0.3,0.55,0.8], dat:{dia:"12742 km",t:"15°C",g:"9.8",day:"24h"} },
-            { id: "mar", r:2.8, d:80, s:0.4, c:[0.8,0.4,0.3], dat:{dia:"6779 km",t:"-65°C",g:"3.71",day:"24.6h"} },
-            { id: "jup", r:10, d:115, s:0.2, c:[0.75,0.7,0.6], dat:{dia:"139820 km",t:"-110°C",g:"24.79",day:"9.9h"} },
-            { id: "sat", r:9, d:150, s:0.15, c:[0.8,0.75,0.65], ring:true, dat:{dia:"116460 km",t:"-140°C",g:"10.44",day:"10.5h"} },
-            { id: "ura", r:7, d:185, s:0.1, c:[0.6,0.8,0.85], dat:{dia:"50724 km",t:"-195°C",g:"8.69",day:"17h"} },
-            { id: "nep", r:7, d:220, s:0.08, c:[0.35,0.45,0.85], dat:{dia:"49244 km",t:"-200°C",g:"11.15",day:"16h"} }
+            { id: "sys", name: "System", color: [1,1,1], r: 0, d: 0, s: 0 },
+            { id: "sun", name: "Sun", color: [1.0, 0.85, 0.6], r: 12, d: 0, s: 0, data: { dia:"1.39M km", tmp:"5500°C", grav:"274", day:"25 days" } },
+            { id: "mer", name: "Mercury", color: [0.7, 0.7, 0.75], r: 2.2, d: 25, s: 0.8, data: { dia:"4879 km", tmp:"167°C", grav:"3.7", day:"58 days" } },
+            { id: "ven", name: "Venus", color: [0.85, 0.8, 0.65], r: 3.8, d: 40, s: 0.6, data: { dia:"12104 km", tmp:"464°C", grav:"8.87", day:"243 days" } },
+            { id: "ear", name: "Earth", color: [0.3, 0.55, 0.8], r: 4.0, d: 60, s: 0.5, data: { dia:"12742 km", tmp:"15°C", grav:"9.8", day:"24h" } },
+            { id: "mar", name: "Mars", color: [0.8, 0.4, 0.3], r: 2.8, d: 80, s: 0.4, data: { dia:"6779 km", tmp:"-65°C", grav:"3.71", day:"24h 37m" } },
+            { id: "jup", name: "Jupiter", color: [0.75, 0.7, 0.6], r: 10, d: 115, s: 0.2, data: { dia:"139820 km", tmp:"-110°C", grav:"24.79", day:"9h 55m" } },
+            { id: "sat", name: "Saturn", color: [0.8, 0.75, 0.65], r: 9, d: 150, s: 0.15, ring: true, data: { dia:"116460 km", tmp:"-140°C", grav:"10.44", day:"10h 33m" } },
+            { id: "ura", name: "Uranus", color: [0.6, 0.8, 0.85], r: 7, d: 185, s: 0.1, data: { dia:"50724 km", tmp:"-195°C", grav:"8.69", day:"17h 14m" } },
+            { id: "nep", name: "Neptune", color: [0.35, 0.45, 0.85], r: 7, d: 220, s: 0.08, data: { dia:"49244 km", tmp:"-200°C", grav:"11.15", day:"16h 6m" } }
         ];
 
-        let curLang='CN', activeIdx=-1, state={disp:0, tDisp:0, hX:0, hY:0, tHX:0, tHY:0};
-        let scene, cam, ren, ctr, uni, planets=[];
+        let scene, camera, renderer, controls, uniforms;
+        let planets = [], activeIdx = -1;
+        let state = { disperse: 0.0, targetDisperse: 0.0, handX: 0, handY: 0, targetHandX: 0, targetHandY: 0 };
 
-        // --- CORE LOGIC START ---
-        document.getElementById('start').onclick = () => {
-            const btn = document.getElementById('start');
-            btn.innerText = "LOADING...";
-            
-            // 立即启动3D，不等待摄像头，防止卡死
-            try {
+        // --- Init ---
+        document.getElementById('btn-start').addEventListener('click', () => {
+            const btn = document.getElementById('btn-start');
+            btn.innerText = "STARTING...";
+            initVideo().then(() => {
+                document.getElementById('cover').style.opacity = 0;
+                setTimeout(() => document.getElementById('cover').style.display = 'none', 800);
                 init3D();
-                upLang();
-                const b = document.querySelector('.l-btn[d-l="CN"]'); if(b) slide(b);
-                document.getElementById('cover').style.opacity=0;
-                setTimeout(()=>document.getElementById('cover').style.display='none',500);
-                
-                // 后台启动摄像头
-                initVid().catch(err => {
-                    console.log("Cam failed, but 3D runs:", err);
-                    document.getElementById('led-c').className = "led err";
-                });
-            } catch(e) {
-                alert("Critical Error: " + e.message);
-            }
-        };
-
-        function toggleInfo() { document.getElementById('info').classList.toggle('collapsed'); }
-
-        document.querySelectorAll('.l-btn').forEach(b => {
-            b.onclick = (e) => {
-                document.querySelectorAll('.l-btn').forEach(x=>x.classList.remove('active'));
-                e.target.classList.add('active');
-                curLang = e.target.getAttribute('d-l');
-                slide(e.target); upLang();
-            }
+                updateLang();
+                const cnBtn = document.querySelector('.lang-btn[data-lang="CN"]');
+                if(cnBtn) updateSlider(cnBtn);
+            }).catch(e => {
+                btn.style.display = 'none';
+                const msg = document.getElementById('error-msg');
+                msg.style.display = 'block';
+                msg.innerText = "CAMERA FAIL (Mobile): " + e.message;
+            });
         });
-        function slide(el) {
-            const s = document.getElementById('l-slider');
-            s.style.width = el.offsetWidth + 'px'; s.style.left = el.offsetLeft + 'px';
-        }
 
-        function upLang() {
-            const t = LANG[curLang];
-            DB.forEach((d,i) => { const b=document.getElementById(`n-${i}`); if(b) b.innerText = t[d.id]; });
-            if(activeIdx!==-1) {
+        // --- Toggle UI ---
+        function toggleInfo() { document.getElementById('info-card').classList.toggle('collapsed'); }
+        function toggleNav() { document.getElementById('nav').classList.toggle('collapsed'); }
+
+        // --- Lang ---
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                curLang = e.target.getAttribute('data-lang');
+                updateSlider(e.target);
+                updateLang();
+            });
+        });
+        function updateSlider(targetBtn) {
+            const slider = document.getElementById('lang-slider');
+            slider.style.width = targetBtn.offsetWidth + 'px';
+            slider.style.left = targetBtn.offsetLeft + 'px';
+        }
+        function updateLang() {
+            const t = LANG[curLang] || LANG.EN;
+            DB.forEach((d, i) => { const b = document.getElementById(`nav-${i}`); if(b) b.innerText = t[d.id] || d.name; });
+            if(activeIdx !== -1) {
                 const d = DB[activeIdx];
-                document.getElementById('p-n').innerText = t[d.id].toUpperCase();
-                document.getElementById('p-d').innerText = t.desc[d.id];
-                document.getElementById('l-dia').innerText = t.lbl.dia;
-                document.getElementById('l-tmp').innerText = t.lbl.tmp;
-                document.getElementById('l-gra').innerText = t.lbl.gra;
-                document.getElementById('l-day').innerText = t.lbl.day;
+                document.getElementById('p-name').innerText = (t[d.id] || d.name).toUpperCase();
+                document.getElementById('p-desc').innerText = t.desc[d.id] || "Planet";
+                document.querySelectorAll('.data-item span').forEach((el, k) => { const keys = ["dia","tmp","grav","day"]; el.innerText = t.lbl[keys[k]]; });
             }
-            document.getElementById('txt-sys').innerText = t.hud.st;
-            document.getElementById('t-cam').innerText = t.hud.cam;
-            document.getElementById('t-hand').innerText = t.hud.hand;
-            document.getElementById('t-mode').innerText = "MODE:";
-            const act = document.getElementById('val-act');
-            act.innerText = state.disp > 0.5 ? t.hud.m_mist : t.hud.m_solid;
+            document.getElementById('txt-cam').innerText = t.hud.cam;
+            document.getElementById('txt-hand').innerText = t.hud.hand;
         }
 
-        function getTex() {
-            const c=document.createElement('canvas'); c.width=64; c.height=64; const x=c.getContext('2d');
-            const g=x.createRadialGradient(32,32,0,32,32,32); g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(0.4,'rgba(255,255,255,0.3)'); g.addColorStop(1,'rgba(0,0,0,0)');
-            x.fillStyle=g; x.fillRect(0,0,64,64); return new THREE.CanvasTexture(c);
+        // --- 3D Engine ---
+        function createTexture() {
+            const c = document.createElement('canvas'); c.width=64; c.height=64;
+            const ctx = c.getContext('2d');
+            const g = ctx.createRadialGradient(32,32,0,32,32,32);
+            g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(0.4,'rgba(255,255,255,0.3)'); g.addColorStop(1,'rgba(0,0,0,0)');
+            ctx.fillStyle=g; ctx.fillRect(0,0,64,64);
+            return new THREE.CanvasTexture(c);
         }
 
         function init3D() {
-            const con = document.getElementById('canvas-container');
-            scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x000000, 0.001);
-            cam = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
-            cam.position.set(0, 100, 200);
-            ren = new THREE.WebGLRenderer({antialias:true, alpha:false});
-            ren.setSize(window.innerWidth, window.innerHeight); ren.setPixelRatio(Math.min(window.devicePixelRatio,2));
-            con.appendChild(ren.domElement);
-            ctr = new THREE.OrbitControls(cam, ren.domElement);
-            ctr.enableDamping=true; ctr.enablePan=false; ctr.autoRotate=true; ctr.autoRotateSpeed=0.3; ctr.maxDistance=600;
-            
-            sGrp = new THREE.Group(); scene.add(sGrp);
-            uni = { time: {value:0}, disp: {value:0}, tex: {value:getTex()} };
-            
-            // Stars
-            const gS=new THREE.BufferGeometry(), pS=[];
-            for(let i=0;i<3000;i++){ const r=600+Math.random()*600, th=Math.random()*6.28, ph=Math.acos(Math.random()*2-1); pS.push(r*Math.sin(ph)*Math.cos(th), r*Math.sin(ph)*Math.sin(th), r*Math.cos(ph)); }
-            gS.setAttribute('position', new THREE.Float32BufferAttribute(pS,3));
-            scene.add(new THREE.Points(gS, new THREE.PointsMaterial({color:0x444444, size:2, transparent:true, opacity:0.6})));
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.001);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 100, 200);
+            sceneGroup = new THREE.Group(); scene.add(sceneGroup);
 
-            const n = document.getElementById('nav');
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x000000);
+            container.appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; controls.enablePan = false; controls.autoRotate = true; controls.autoRotateSpeed = 0.3; controls.maxDistance = 600;
+
+            uniforms = { uTime: { value: 0 }, uDisperse: { value: 0.0 }, uTexture: { value: createTexture() } };
+
+            createStars();
+            createSystem();
+            createNav();
+            animate();
+            window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        }
+
+        function createSystem() {
             DB.forEach((d, i) => {
-                const b = document.createElement('button'); b.className='btn'; b.id=`n-${i}`; b.innerText=LANG.CN[d.id];
-                if(i===0) b.classList.add('active'); b.onclick=()=>focus(i); n.appendChild(b);
                 if(i===0) return;
-                const piv = new THREE.Group(); sGrp.add(piv);
-                const mg = new THREE.Group(); piv.add(mg);
-                addL(mg, d, d.r*0.7, d.id==="sun"?2000:800, 1.2, 1.0);
-                addL(mg, d, d.r*1.0, d.id==="sun"?3000:1500, 1.5, 0.8);
-                if(d.id!=="mer") addL(mg, d, d.r*1.3, 600, 2.5, 0.4);
-                if(d.ring) addR(mg, d);
+                const pivot = new THREE.Group(); sceneGroup.add(pivot);
+                const mg = new THREE.Group(); pivot.add(mg);
+                createLayer(mg, d, d.r*0.7, d.id==="sun"?2000:800, 1.2, 1.0);
+                createLayer(mg, d, d.r*1.0, d.id==="sun"?3000:1500, 1.5, 0.8);
+                if(d.id!=="mer") createLayer(mg, d, d.r*1.3, 600, 2.5, 0.4);
+                if(d.ring) createRing(mg, d);
                 mg.position.x = d.d;
                 if(d.d>0) {
-                    const pts=[]; for(let k=0;k<=128;k++){ const a=(k/128)*6.28; pts.push(new THREE.Vector3(Math.cos(a)*d.d,0,Math.sin(a)*d.d)); }
-                    const lG=new THREE.BufferGeometry().setFromPoints(pts);
-                    sGrp.add(new THREE.LineLoop(lG, new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.15, blending:THREE.AdditiveBlending})));
+                    const pts=[]; for(let j=0; j<=256; j++){ const a=(j/256)*Math.PI*2; pts.push(new THREE.Vector3(Math.cos(a)*d.d,0,Math.sin(a)*d.d)); }
+                    const geo=new THREE.BufferGeometry().setFromPoints(pts);
+                    const mat=new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.15, blending:THREE.AdditiveBlending});
+                    sceneGroup.add(new THREE.LineLoop(geo, mat));
                 }
-                planets.push({piv, mg, s:d.s*0.003, d});
+                planets.push({id:d.id, pivot:pivot, mg:mg, speed:d.s*0.003, data:d});
             });
-
-            animate(sGrp);
-            window.onresize = () => { cam.aspect=window.innerWidth/window.innerHeight; cam.updateProjectionMatrix(); ren.setSize(window.innerWidth, window.innerHeight); };
         }
 
-        function addL(g, d, r, c, ss, as) {
-            const geo=new THREE.BufferGeometry(), pos=[], mo=[], rs=[], sz=[];
-            const col = new THREE.Color(d.c[0], d.c[1], d.c[2]); const hsl={}; col.getHSL(hsl);
+        function createLayer(g, d, r, c, sS, aS) {
+            const geo = new THREE.BufferGeometry();
+            const sP=[], mO=[], rS=[], sz=[];
+            const bc = new THREE.Color(d.color[0], d.color[1], d.color[2]);
+            const hsl = {}; bc.getHSL(hsl);
             for(let k=0; k<c; k++) {
-                const rad=r, th=Math.random()*6.28, ph=Math.acos(Math.random()*2-1);
-                pos.push(rad*Math.sin(ph)*Math.cos(th), rad*Math.sin(ph)*Math.sin(th), rad*Math.cos(ph));
-                const s=d.r*8; mo.push((Math.random()-0.5)*s, (Math.random()-0.5)*s, (Math.random()-0.5)*s);
-                rs.push(Math.random()); sz.push((Math.random()*1.5+0.5)*ss);
+                const rad=r, th=Math.random()*Math.PI*2, ph=Math.acos(Math.random()*2-1);
+                sP.push(rad*Math.sin(ph)*Math.cos(th), rad*Math.sin(ph)*Math.sin(th), rad*Math.cos(ph));
+                const sp=d.r*8.0;
+                mO.push((Math.random()-0.5)*sp, (Math.random()-0.5)*sp, (Math.random()-0.5)*sp);
+                rS.push(Math.random()); sz.push((Math.random()*1.5+0.5)*sS);
             }
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3)); geo.setAttribute('mo', new THREE.Float32BufferAttribute(mo,3));
-            geo.setAttribute('rs', new THREE.Float32BufferAttribute(rs,1)); geo.setAttribute('size', new THREE.Float32BufferAttribute(sz,1));
-            g.add(new THREE.Points(geo, new THREE.ShaderMaterial({
-                uniforms:{...uni, col:{value:col.clone().setHSL(hsl.h,hsl.s,hsl.l*as)}},
-                vertexShader:document.getElementById('vs').textContent, fragmentShader:document.getElementById('fs').textContent,
-                blending:THREE.AdditiveBlending, depthWrite:false, transparent:true
-            })));
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(sP, 3));
+            geo.setAttribute('mistOffset', new THREE.Float32BufferAttribute(mO, 3));
+            geo.setAttribute('randomScale', new THREE.Float32BufferAttribute(rS, 1));
+            geo.setAttribute('size', new THREE.Float32BufferAttribute(sz, 1));
+            const col = bc.clone().setHSL(hsl.h, hsl.s, hsl.l * aS);
+            const mat = new THREE.ShaderMaterial({
+                uniforms: { ...uniforms, uColor: { value: col } },
+                vertexShader: document.getElementById('vShader').textContent,
+                fragmentShader: document.getElementById('fShader').textContent,
+                blending: THREE.AdditiveBlending, depthWrite: false, transparent: true
+            });
+            g.add(new THREE.Points(geo, mat));
         }
 
-        function addR(g, d) {
-            const geo=new THREE.BufferGeometry(), pos=[], mo=[], rs=[], sz=[];
+        function createRing(g, d) {
+            const geo = new THREE.BufferGeometry();
+            const sP=[], mO=[], rS=[], sz=[];
             for(let k=0; k<1200; k++) {
-                const rad=d.r*(1.5+Math.random()*1.5), th=Math.random()*6.28;
-                pos.push(rad*Math.cos(th), (Math.random()-0.5)*0.3, rad*Math.sin(th));
-                mo.push((Math.random()-0.5)*d.r*6, (Math.random()-0.5)*d.r*6, (Math.random()-0.5)*d.r*6);
-                rs.push(Math.random()); sz.push(Math.random()*1.2+0.5);
+                const r=d.r*(1.5+Math.random()*1.5), th=Math.random()*Math.PI*2;
+                sP.push(r*Math.cos(th), (Math.random()-0.5)*0.3, r*Math.sin(th));
+                mO.push((Math.random()-0.5)*d.r*6, (Math.random()-0.5)*d.r*6, (Math.random()-0.5)*d.r*6);
+                rS.push(Math.random()); sz.push(Math.random()*1.2+0.5);
             }
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3)); geo.setAttribute('mo', new THREE.Float32BufferAttribute(mo,3));
-            geo.setAttribute('rs', new THREE.Float32BufferAttribute(rs,1)); geo.setAttribute('size', new THREE.Float32BufferAttribute(sz,1));
-            g.add(new THREE.Points(geo, new THREE.ShaderMaterial({
-                uniforms:{...uni, col:{value:new THREE.Color(0.8,0.75,0.6)}},
-                vertexShader:document.getElementById('vs').textContent, fragmentShader:document.getElementById('fs').textContent,
-                blending:THREE.AdditiveBlending, depthWrite:false, transparent:true
-            })));
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(sP, 3));
+            geo.setAttribute('mistOffset', new THREE.Float32BufferAttribute(mO, 3));
+            geo.setAttribute('randomScale', new THREE.Float32BufferAttribute(rS, 1));
+            geo.setAttribute('size', new THREE.Float32BufferAttribute(sz, 1));
+            const mat = new THREE.ShaderMaterial({
+                uniforms: { ...uniforms, uColor: { value: new THREE.Color(0.8, 0.75, 0.6) } },
+                vertexShader: document.getElementById('vShader').textContent,
+                fragmentShader: document.getElementById('fShader').textContent,
+                blending: THREE.AdditiveBlending, depthWrite: false, transparent: true
+            });
+            g.add(new THREE.Points(geo, mat));
         }
 
-        function animate(grp) {
-            requestAnimationFrame(()=>animate(grp));
-            const t = performance.now()*0.001; uni.time.value = t; TWEEN.update();
+        function createStars() {
+            const geo = new THREE.BufferGeometry(); const pos=[];
+            for(let i=0; i<3000; i++){ const r=500+Math.random()*500, th=Math.random()*Math.PI*2, ph=Math.acos(Math.random()*2-1); pos.push(r*Math.sin(ph)*Math.cos(th), r*Math.sin(ph)*Math.sin(th), r*Math.cos(ph)); }
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            sceneGroup.add(new THREE.Points(geo, new THREE.PointsMaterial({color:0x444444, size:2, transparent:true, opacity:0.6})));
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now() * 0.001;
+            uniforms.uTime.value = time;
+            TWEEN.update();
+
+            state.disperse += (state.targetDisperse - state.disperse) * 0.08;
+            uniforms.uDisperse.value = state.disperse;
             
-            state.disp += (state.tDisp - state.disp) * 0.08; uni.disp.value = state.disp;
-            state.hX += (state.tHX - state.hX) * 0.05; state.hY += (state.tHY - state.hY) * 0.05;
-            
-            if(grp) { grp.rotation.x = state.hY * 0.3; grp.rotation.y = state.hX * 0.3; }
-            
+            // Gravity
+            state.handX += (state.targetHandX - state.handX) * 0.05;
+            state.handY += (state.targetHandY - state.handY) * 0.05;
+            sceneGroup.rotation.x = state.handY * 0.3; sceneGroup.rotation.y = state.handX * 0.3;
+
             // HUD
-            document.getElementById('g-fill').style.width = (state.disp*100)+'%';
-            document.getElementById('pos-debug').innerText = `${state.hX.toFixed(2)}, ${state.hY.toFixed(2)}`;
-            const lT = LANG[curLang];
-            const act = document.getElementById('val-act');
-            if(state.disp>0.5) { act.innerText=lT.hud.m_mist; act.style.color='#0f0'; document.getElementById('g-fill').style.background='#0f0'; }
-            else { act.innerText=lT.hud.m_solid; act.style.color='#888'; document.getElementById('g-fill').style.background='#444'; }
+            const t = (LANG[curLang] || LANG.EN).hud;
+            const bar = document.getElementById('gesture-fill');
+            const act = document.getElementById('val-action');
+            bar.style.width = (state.disperse * 100) + '%';
+            if(state.disperse > 0.5) { bar.style.backgroundColor = '#0f0'; act.innerText = t.act_mist; act.style.color='#0f0'; }
+            else { bar.style.backgroundColor = '#444'; act.innerText = t.act_form; act.style.color='#888'; }
+            
+            document.getElementById('pos-debug').innerText = `${state.handX.toFixed(2)}, ${state.handY.toFixed(2)}`;
 
-            planets.forEach(p=>p.piv.rotation.y+=p.s);
-            if(activeIdx>0) {
-                const tg = planets[activeIdx-1]; if(tg){ const wp=new THREE.Vector3(); tg.mg.getWorldPosition(wp); ctr.target.copy(wp); }
+            planets.forEach(p => p.pivot.rotation.y += p.speed);
+            if (activeIdx !== -1) {
+                const target = planets[activeIdx - 1];
+                if (target) { const wp = new THREE.Vector3(); target.mg.getWorldPosition(wp); controls.target.copy(wp); }
             }
-            ctr.update(); ren.render(scene, cam);
+            controls.update();
+            renderer.render(scene, camera);
         }
 
-        function focus(i) {
-            activeIdx=i; document.querySelectorAll('.btn').forEach((b,k)=>b.classList.toggle('active',k===i));
-            const inf=document.getElementById('info');
-            if(i===0) {
-                activeIdx=-1; inf.classList.remove('show'); ctr.autoRotate=true;
-                new TWEEN.Tween(cam.position).to({x:0,y:100,z:200},1500).easing(TWEEN.Easing.Cubic.Out).start();
-                new TWEEN.Tween(ctr.target).to({x:0,y:0,z:0},1500).start();
+        function createNav() {
+            const n = document.getElementById('nav-content');
+            DB.forEach((d, i) => {
+                const b = document.createElement('button');
+                b.className = 'btn'; b.id = `nav-${i}`; b.innerText = d.name;
+                if(i===0) b.classList.add('active');
+                b.onclick = () => focusView(i);
+                n.appendChild(b);
+            });
+        }
+
+        function focusView(idx) {
+            activeIdx = idx;
+            document.querySelectorAll('.btn').forEach((b,i)=>b.classList.toggle('active', i===idx));
+            const info = document.getElementById('info-card');
+            info.classList.remove('collapsed');
+            
+            if(idx===0) {
+                activeIdx = -1; info.classList.remove('show'); controls.autoRotate = true;
+                new TWEEN.Tween(camera.position).to({x:0, y:100, z:200}, 1500).easing(TWEEN.Easing.Cubic.Out).start();
+                new TWEEN.Tween(controls.target).to({x:0, y:0, z:0}, 1500).start();
             } else {
-                ctr.autoRotate=false; upLang();
-                const d=DB[i];
-                document.getElementById('v-dia').innerText=d.dat.dia; document.getElementById('v-tmp').innerText=d.dat.t;
-                document.getElementById('v-gra').innerText=d.dat.g; document.getElementById('v-day').innerText=d.dat.day;
-                inf.classList.add('show'); ctr.minDistance=d.r*2.5;
-                const tg=planets[i-1]; const wp=new THREE.Vector3(); tg.mg.getWorldPosition(wp);
-                const off=wp.clone().normalize().multiplyScalar(d.r*5+30); off.y+=15; const ce=wp.clone().add(off);
-                new TWEEN.Tween(cam.position).to({x:ce.x,y:ce.y,z:ce.z},1500).easing(TWEEN.Easing.Cubic.Out).start();
+                controls.autoRotate = false;
+                const d = DB[idx];
+                updateLang();
+                document.getElementById('d-dia').innerText = d.data.dia;
+                document.getElementById('d-tmp').innerText = d.data.tmp;
+                document.getElementById('d-grav').innerText = d.data.grav;
+                document.getElementById('d-day').innerText = d.data.day;
+                info.classList.add('show');
+                controls.minDistance = d.r*2.5;
+                const t = planets[idx-1]; const wp = new THREE.Vector3(); t.mg.getWorldPosition(wp);
+                const off = wp.clone().normalize().multiplyScalar(d.r*5+30); off.y+=15;
+                const ce = wp.clone().add(off);
+                new TWEEN.Tween(camera.position).to({x:ce.x, y:ce.y, z:ce.z}, 1500).easing(TWEEN.Easing.Cubic.Out).start();
             }
         }
 
-        async function initVid() {
-            const v = document.getElementById('input-video');
-            const h = new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-            h.setOptions({maxNumHands:1, minDetectionConfidence:0.5});
-            h.onResults(res => {
-                const led=document.getElementById('led-h');
-                if(res.multiHandLandmarks.length>0) {
-                    led.className="led on";
-                    const lm=res.multiHandLandmarks[0];
-                    const w = Math.hypot(lm[8].x-lm[20].x, lm[8].y-lm[20].y);
-                    const p = Math.hypot(lm[0].x-lm[9].x, lm[0].y-lm[9].y);
-                    state.tDisp = w > p*1.3 ? 1.0 : 0.0;
-                    
-                    const cx=(lm[0].x+lm[9].x)/2; const cy=(lm[0].y+lm[9].y)/2;
-                    state.tHX = (0.5-cx)*2; state.tHY = (0.5-cy)*2;
+        async function initVideo() {
+            const video = document.getElementById('input-video');
+            const ledCam = document.getElementById('led-cam');
+            ledCam.className = "led wait";
+            const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+            hands.setOptions({maxNumHands: 1, minDetectionConfidence: 0.5, modelComplexity: 0});
+            
+            hands.onResults(res => {
+                const ledH = document.getElementById('led-hand');
+                if(res.multiHandLandmarks.length > 0) {
+                    ledH.className = "led on";
+                    const lm = res.multiHandLandmarks[0];
+                    const w = Math.hypot(lm[8].x - lm[20].x, lm[8].y - lm[20].y);
+                    const palm = Math.hypot(lm[0].x - lm[9].x, lm[0].y - lm[9].y);
+                    if (w > palm * 1.3) state.targetDisperse = 1.0; else state.targetDisperse = 0.0;
+                    const cx = (lm[0].x + lm[9].x) / 2; const cy = (lm[0].y + lm[9].y) / 2;
+                    state.targetHandX = (0.5 - cx) * 2.0; state.targetHandY = (0.5 - cy) * 2.0;
                 } else {
-                    led.className="led wait"; state.tDisp=0; state.tHX=0; state.tHY=0;
+                    ledH.className = "led wait";
+                    state.targetDisperse = 0.0; state.targetHandX = 0; state.targetHandY = 0;
                 }
             });
-            const c = new Camera(v, {onFrame:async()=>{await h.send({image:v})}, width:320, height:240, facingMode:'user'});
-            await c.start();
-            document.getElementById('led-c').className="led on";
+            const cam = new Camera(video, { onFrame: async () => { await hands.send({image: video}); }, width: 320, height: 240, facingMode: "user" });
+            await cam.start();
+            ledCam.className = "led on";
         }
     </script>
 </body>
