@@ -211,7 +211,7 @@
     </script>
     <script type="x-shader/x-fragment" id="fShader">
         uniform sampler2D uTexture; uniform vec3 uColor; varying float vAlpha;
-        void main() {
+		void main() {
             vec4 tex = texture2D(uTexture, gl_PointCoord);
             if(tex.a < 0.05) discard;
             gl_FragColor = vec4(uColor, vAlpha * tex.r); 
@@ -219,8 +219,63 @@
     </script>
 
     <script>
-        const LANG={CN:{lbl:{dia:"直径",tmp:"温度",grav:"重力",day:"自转"},sys:"星系全览",sun:"太阳",mer:"水星",ven:"金星",ear:"地球",mar:"火星",jup:"木星",sat:"土星",ura:"天王星",nep:"海王星",desc:{sun:"主序星",mer:"岩石行星",ven:"浓厚大气",ear:"蓝色星球",mar:"红色沙漠",jup:"气体巨星",sat:"光环行星",ura:"冰巨星",nep:"蓝色冰球"},hud:{cam:"相机",hand:"手势",act_form:"实体",act_mist:"星云"}},EN:{lbl:{dia:"DIAMETER",tmp:"TEMP",grav:"GRAVITY",day:"DAY"},sys:"SYSTEM VIEW",sun:"SUN",mer:"MERCURY",ven:"VENUS",ear:"EARTH",mar:"MARS",jup:"JUPITER",sat:"SATURN",ura:"URANUS",nep:"NEPTUNE",desc:{sun:"Main Sequence",mer:"Rocky World",ven:"Thick Atmosphere",ear:"Blue Marble",mar:"Red Desert",jup:"Gas Giant",sat:"Ringed Jewel",ura:"Ice Giant",nep:"Deep Blue"},hud:{cam:"CAM",hand:"HAND",act_form:"FORM",act_mist:"MIST"}}};
-        LANG.DE=LANG.EN; LANG.FR=LANG.EN; LANG.ES=LANG.EN; LANG.IT=LANG.EN; 
+		const LANG = {
+            CN: {
+                sys: "星系全览", sun: "太阳", mer: "水星", ven: "金星", ear: "地球", mar: "火星", jup: "木星", sat: "土星", ura: "天王星", nep: "海王星",
+                desc: { 
+                    sun: "主序星", mer: "岩石世界", ven: "浓厚大气", ear: "蓝色星球", mar: "红色沙漠", 
+                    jup: "气体巨星", sat: "光环行星", ura: "冰巨星", nep: "蓝色冰球" 
+                },
+                lbl: { dia: "直径", tmp: "温度", gra: "重力", day: "自转" },
+                hud: { st: "系统状态", cam: "相机", hand: "手势", m_solid: "实体", m_mist: "星云" }
+            },
+            EN: {
+                sys: "SYSTEM VIEW", sun: "SUN", mer: "MERCURY", ven: "VENUS", ear: "EARTH", mar: "MARS", jup: "JUPITER", sat: "SATURN", ura: "URANUS", nep: "NEPTUNE",
+                desc: { 
+                    sun: "Main Sequence", mer: "Rocky World", ven: "Thick Cloud", ear: "Blue Marble", mar: "Red Desert", 
+                    jup: "Gas Giant", sat: "Ringed Jewel", ura: "Ice Giant", nep: "Deep Blue" 
+                },
+                lbl: { dia: "DIAMETER", tmp: "TEMP", gra: "GRAVITY", day: "DAY" },
+                hud: { st: "SYSTEM STATUS", cam: "CAM", hand: "HAND", m_solid: "SOLID", m_mist: "MIST" }
+            },
+            DE: {
+                sys: "SYSTEM", sun: "SONNE", mer: "MERKUR", ven: "VENUS", ear: "ERDE", mar: "MARS", jup: "JUPITER", sat: "SATURN", ura: "URANUS", nep: "NEPTUN",
+                desc: { 
+                    sun: "Hauptreihe", mer: "Felsplanet", ven: "Dichte Wolken", ear: "Der Blaue Planet", mar: "Rote Wüste", 
+                    jup: "Gasriese", sat: "Ringplanet", ura: "Eisriese", nep: "Blauer Riese" 
+                },
+                lbl: { dia: "DURCHMESSER", tmp: "TEMP", gra: "GRAVITATION", day: "TAG" },
+                hud: { st: "STATUS", cam: "KAMERA", hand: "HAND", m_solid: "FEST", m_mist: "NEBEL" }
+            },
+            FR: {
+                sys: "SYSTÈME", sun: "SOLEIL", mer: "MERCURE", ven: "VÉNUS", ear: "TERRE", mar: "MARS", jup: "JUPITER", sat: "SATURNE", ura: "URANUS", nep: "NEPTUNE",
+                desc: { 
+                    sun: "Séquence Principale", mer: "Monde Rocheux", ven: "Nuages Épais", ear: "Planète Bleue", mar: "Désert Rouge", 
+                    jup: "Géante Gazeuse", sat: "Planète à Anneaux", ura: "Géante de Glace", nep: "Monde Bleu" 
+                },
+                lbl: { dia: "DIAMÈTRE", tmp: "TEMP", gra: "GRAVITÉ", day: "JOUR" },
+                hud: { st: "ÉTAT", cam: "CAMÉRA", hand: "MAIN", m_solid: "SOLIDE", m_mist: "NÉBULEUSE" }
+            },
+            ES: {
+                sys: "SISTEMA", sun: "SOL", mer: "MERCURIO", ven: "VENUS", ear: "TIERRA", mar: "MARTE", jup: "JÚPITER", sat: "SATURNO", ura: "URANO", nep: "NEPTUNO",
+                desc: { 
+                    sun: "Secuencia Principal", mer: "Mundo Rocoso", ven: "Nubes Espesas", ear: "Planeta Azul", mar: "Desierto Rojo", 
+                    jup: "Gigante Gaseoso", sat: "Planeta Anillado", ura: "Gigante de Hielo", nep: "Mundo Azul" 
+                },
+                lbl: { dia: "DIÁMETRO", tmp: "TEMP", gra: "GRAVEDAD", day: "DÍA" },
+                hud: { st: "ESTADO", cam: "CÁMARA", hand: "MANO", m_solid: "SÓLIDO", m_mist: "NIEBLA" }
+            },
+            IT: {
+                sys: "SISTEMA", sun: "SOLE", mer: "MERCURIO", ven: "VENERE", ear: "TERRA", mar: "MARTE", jup: "GIOVE", sat: "SATURNO", ura: "URANO", nep: "NETTUNO",
+                desc: { 
+                    sun: "Sequenza Principale", mer: "Mondo Roccioso", ven: "Nubi Dense", ear: "Pianeta Blu", mar: "Deserto Rosso", 
+                    jup: "Gigante Gassoso", sat: "Pianeta Anellato", ura: "Gigante Ghiacciato", nep: "Mondo Blu" 
+                },
+                lbl: { dia: "DIAMETRO", tmp: "TEMP", gra: "GRAVITÀ", day: "GIORNO" },
+                hud: { st: "STATO", cam: "CAMERA", hand: "MANO", m_solid: "SOLIDO", m_mist: "NEBBIA" }
+            }
+        };
+
 
         let curLang = 'CN';
         const DB = [
