@@ -3,530 +3,624 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Solar Dust III - Nebula Edition</title>
+    <title>Solar Dust IV - Cinematic Core</title>
     <style>
         :root {
-            --bg-color: #020203; /* 更深邃的宇宙黑 */
-            --glass-bg: rgba(20, 25, 35, 0.6);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --accent: #8ab4f8;
-            --text-main: #e8eaed;
-            --text-sub: #9aa0a6;
+            --bg-color: #000000;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.15);
+            --accent: #00f3ff; /* 赛博青 */
+            --text: #ffffff;
         }
 
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden;
-            background-color: var(--bg-color);
-            font-family: "Segoe UI", Roboto, Helvetica, sans-serif;
-            color: var(--text-main);
+            overflow: hidden; background-color: var(--bg-color);
+            font-family: 'Rajdhani', 'Segoe UI', sans-serif; /* 科技感字体 */
+            color: var(--text);
         }
 
         #canvas-container { width: 100%; height: 100%; position: absolute; z-index: 1; }
         #input-video { display: none; }
 
-        /* UI Panels */
+        /* UI */
+        .ui-layer {
+            position: absolute; pointer-events: none; z-index: 10;
+            width: 100%; height: 100%;
+        }
+
         .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             pointer-events: auto;
-            transition: all 0.3s ease;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 4px; /* 更硬朗的边角 */
+            padding: 15px;
+            transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1);
         }
 
-        h2 { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-sub); margin: 0 0 10px 0; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; }
+        /* 左侧导航 */
+        #sidebar {
+            position: absolute; top: 20px; left: 20px; width: 220px;
+        }
         
-        #left-sidebar {
-            position: absolute; top: 20px; left: 20px; width: 240px; z-index: 10;
-            display: flex; flex-direction: column; gap: 15px;
+        .nav-btn {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 15px; margin-bottom: 5px;
+            background: transparent; border: 1px solid transparent;
+            color: rgba(255,255,255,0.6);
+            cursor: pointer; font-size: 14px; text-transform: uppercase; letter-spacing: 2px;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { background: rgba(255,255,255,0.1); color: #fff; padding-left: 20px; }
+        .nav-btn.active { 
+            border-left: 3px solid var(--accent); 
+            background: linear-gradient(90deg, rgba(0,243,255,0.1), transparent);
+            color: var(--accent);
+            text-shadow: 0 0 10px var(--accent);
         }
 
-        .planet-list { display: flex; flex-direction: column; gap: 4px; max-height: 40vh; overflow-y: auto; }
-        .planet-btn {
-            padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-sub);
-            display: flex; justify-content: space-between; align-items: center; transition: 0.2s;
-        }
-        .planet-btn:hover { background: rgba(255,255,255,0.05); color: #fff; }
-        .planet-btn.active { background: rgba(138, 180, 248, 0.15); color: var(--accent); }
-        
-        .guide-item { font-size: 11px; color: var(--text-sub); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
-        .icon-box { width: 16px; height: 16px; background: rgba(255,255,255,0.1); border-radius: 4px; display: grid; place-items: center; font-size: 10px; }
-
-        /* Info Panel */
-        #info-panel {
-            position: absolute; top: 20px; right: 20px; width: 280px; z-index: 10;
+        /* 右侧信息 */
+        #info-card {
+            position: absolute; bottom: 40px; right: 40px; width: 300px;
             transform: translateX(120%); opacity: 0;
+            border-left: 4px solid var(--accent);
         }
-        #info-panel.visible { transform: translateX(0); opacity: 1; }
-        .planet-title { font-size: 22px; font-weight: 300; letter-spacing: 2px; color: #fff; margin: 0; }
-        .planet-subtitle { font-size: 11px; color: var(--accent); text-transform: uppercase; margin-bottom: 10px; }
-        .info-content { font-size: 12px; line-height: 1.5; color: rgba(255,255,255,0.8); margin-bottom: 15px; }
-        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .data-item { background: rgba(0,0,0,0.2); padding: 6px 8px; border-radius: 6px; }
-        .data-label { font-size: 9px; color: var(--text-sub); display: block; }
-        .data-value { font-size: 11px; color: #fff; font-family: monospace; }
-        #toggle-info { position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--text-sub); cursor: pointer; }
+        #info-card.visible { transform: translateX(0); opacity: 1; }
 
-        /* Status & Overlay */
-        #cam-status {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 10;
-            display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: 20px;
-        }
-        .status-dot { width: 6px; height: 6px; background: #444; border-radius: 50%; transition: 0.3s; }
-        .status-dot.active { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
-        .status-text { font-size: 12px; color: var(--text-sub); }
+        h1 { margin: 0; font-size: 32px; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; }
+        .subtitle { color: var(--accent); font-size: 12px; letter-spacing: 2px; margin-bottom: 10px; display: block; }
+        p { font-size: 13px; line-height: 1.6; color: rgba(255,255,255,0.7); }
 
-        #overlay {
-            position: fixed; inset: 0; background: #020203; z-index: 100;
-            display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.8s;
+        /* 启动页 */
+        #loader {
+            position: fixed; inset: 0; background: #000; z-index: 100;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 1s;
         }
-        #start-btn {
-            background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.3);
-            padding: 15px 40px; font-size: 14px; letter-spacing: 4px; text-transform: uppercase;
-            cursor: pointer; transition: all 0.3s;
+        .start-btn {
+            background: transparent; border: 1px solid var(--accent); color: var(--accent);
+            padding: 15px 50px; font-size: 16px; letter-spacing: 6px; text-transform: uppercase;
+            cursor: pointer; transition: 0.3s;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
         }
-        #start-btn:hover { background: #fff; color: #000; box-shadow: 0 0 20px rgba(255,255,255,0.5); }
+        .start-btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 40px var(--accent); }
+
+        /* 手势提示 */
+        #gesture-hint {
+            position: absolute; top: 20px; right: 20px; display: flex; gap: 10px;
+        }
+        .hint-box {
+            background: rgba(0,0,0,0.6); border: 1px solid var(--border); padding: 5px 10px;
+            font-size: 10px; color: rgba(255,255,255,0.5); border-radius: 4px;
+        }
+        .hint-box.active { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 10px rgba(0,243,255,0.3); }
+
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <div id="overlay">
-        <h1 style="font-weight: 100; font-size: 32px; letter-spacing: 8px; margin-bottom: 30px; text-align: center;">SOLAR <span style="color:#8ab4f8">NEBULA</span></h1>
-        <button id="start-btn">Enter System</button>
+    <div id="loader">
+        <h2 style="font-weight:100; font-size:40px; letter-spacing:10px; color:white; margin-bottom:40px; text-shadow: 0 0 20px rgba(255,255,255,0.5);">VOID <span style="color:#00f3ff">DUST</span></h2>
+        <button class="start-btn" id="start-btn">INITIALIZE</button>
     </div>
 
-    <div id="left-sidebar">
-        <div class="glass-panel" style="padding: 15px;">
-            <h2>Navigation</h2>
-            <div class="planet-list" id="planet-menu">
-                <div class="planet-btn active" onclick="focusPlanet(-1)"><span>Overview</span><span>●</span></div>
+    <div class="ui-layer">
+        <div id="sidebar" class="glass-panel">
+            <div id="nav-container">
+                </div>
+        </div>
+
+        <div id="gesture-hint">
+            <div class="hint-box" id="hint-bloom">✋ 绽放 (Bloom)</div>
+            <div class="hint-box" id="hint-focus">✊ 聚合 (Core)</div>
+        </div>
+
+        <div id="info-card" class="glass-panel">
+            <h1 id="p-name">EARTH</h1>
+            <span class="subtitle" id="p-type">HABITABLE ZONE</span>
+            <p id="p-desc">The cradle of humanity.</p>
+            <div style="margin-top:20px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px; font-family:monospace; font-size:11px; color:var(--accent);">
+                DIA: <span id="p-dia">12756</span> KM <br>
+                TMP: <span id="p-tmp">15</span> °C
             </div>
         </div>
-        <div class="glass-panel" style="padding: 15px;">
-            <h2>Controls</h2>
-            <div class="guide-item"><div class="icon-box">🖱️</div> <span>鼠标/触控: 旋转和缩放视角</span></div>
-            <div class="guide-item"><div class="icon-box">👐</div> <span>张开手掌: 粒子绽放 (自由浮动)</span></div>
-            <div class="guide-item"><div class="icon-box">✊</div> <span>握拳: 粒子聚合 (核心聚焦)</span></div>
-        </div>
-    </div>
-
-    <div id="info-panel" class="glass-panel" style="padding: 20px;">
-        <button id="toggle-info" onclick="toggleInfoPanel()">✕</button>
-        <h1 class="planet-title" id="info-name">Earth</h1>
-        <div class="planet-subtitle" id="info-type">Terrestrial Planet</div>
-        <p class="info-content" id="info-desc">Description text here.</p>
-        <div class="data-grid">
-            <div class="data-item"><span class="data-label">DIAMETER</span><span class="data-value" id="info-dia">-</span></div>
-            <div class="data-item"><span class="data-label">TEMP</span><span class="data-value" id="info-temp">-</span></div>
-        </div>
-    </div>
-
-    <div id="cam-status" class="glass-panel">
-        <div class="status-dot" id="status-dot"></div>
-        <span class="status-text" id="status-text">Waiting for camera...</span>
     </div>
 
     <video id="input-video"></video>
     <div id="canvas-container"></div>
 
-    <script type="x-shader/x-vertex" id="vertexShader">
+    <script type="x-shader/x-vertex" id="vShader">
         attribute float size;
-        attribute vec3 originalPos; // 记录粒子的初始球体位置
-        attribute float variation;
-
+        attribute vec3 originalPos; 
+        attribute float randomSeed;
+        
         uniform float uTime;
-        uniform float uFist; // 0.0 (张开) 到 1.0 (握拳)
-
+        uniform float uFist; // 0=Bloom, 1=Core
+        
         varying vec3 vColor;
         varying float vAlpha;
+        varying float vDist;
 
-        // 简单的伪随机函数
-        float random(vec3 st) {
-            return fract(sin(dot(st.xyz, vec3(12.9898,78.233,45.164))) * 43758.5453123);
+        // 3D Noise function for organic movement
+        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+        vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+        float snoise(vec3 v) { 
+            const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+            const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+            vec3 i  = floor(v + dot(v, C.yyy) );
+            vec3 x0 = v - i + dot(i, C.xxx) ;
+            vec3 g = step(x0.yzx, x0.xyz);
+            vec3 l = 1.0 - g;
+            vec3 i1 = min( g.xyz, l.zxy );
+            vec3 i2 = max( g.xyz, l.zxy );
+            vec3 x1 = x0 - i1 + C.xxx;
+            vec3 x2 = x0 - i2 + C.yyy;
+            vec3 x3 = x0 - D.yyy;
+            i = mod289(i); 
+            vec4 p = permute( permute( permute( 
+                        i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+                    + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+                    + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+            float n_ = 0.142857142857; 
+            vec3  ns = n_ * D.wyz - D.xzx;
+            vec4 j = p - 49.0 * floor(p * ns.z * ns.z); 
+            vec4 x_ = floor(j * ns.z);
+            vec4 y_ = floor(j - 7.0 * x_ );  
+            vec4 x = x_ *ns.x + ns.yyyy;
+            vec4 y = y_ *ns.x + ns.yyyy;
+            vec4 h = 1.0 - abs(x) - abs(y);
+            vec4 b0 = vec4( x.xy, y.xy );
+            vec4 b1 = vec4( x.zw, y.zw );
+            vec4 s0 = floor(b0)*2.0 + 1.0;
+            vec4 s1 = floor(b1)*2.0 + 1.0;
+            vec4 sh = -step(h, vec4(0.0));
+            vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+            vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+            vec3 p0 = vec3(a0.xy,h.x);
+            vec3 p1 = vec3(a0.zw,h.y);
+            vec3 p2 = vec3(a1.xy,h.z);
+            vec3 p3 = vec3(a1.zw,h.w);
+            vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+            p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+            vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+            m = m * m;
+            return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
         }
 
         void main() {
             vColor = color;
             vec3 pos = originalPos;
-
-            // --- 1. 自由浮动效果 (针对需求 1) ---
-            // 基于时间和位置的正弦波叠加，创造缓慢的湍流感
-            float t = uTime * 0.3;
-            vec3 noise = vec3(0.0);
-            noise.x = sin(pos.y * 0.5 + t + variation) * cos(pos.z * 0.5 + t * 0.8);
-            noise.y = cos(pos.x * 0.5 + t * 1.1 + variation) * sin(pos.z * 0.5 + t * 0.5);
-            noise.z = sin(pos.x * 0.5 + t * 0.7 + variation) * cos(pos.y * 0.5 + t * 0.9);
             
-            // 绽放状态下，湍流幅度更大
-            float bloomFactor = 1.0 - uFist; 
-            pos += noise * (1.5 + bloomFactor * 2.0);
-
-            // --- 2. 聚合/绽放效果 (针对需求 4) ---
-            // 计算目标位置：向地心 (0,0,0) 收缩
-            // uFist 越大，越靠近中心。保留一点点距离避免完全坍缩成一个点。
-            vec3 contractedPos = normalize(pos) * (length(originalPos) * 0.1); 
+            // 1. 噪声湍流 (自由浮动)
+            float noiseFreq = 0.5;
+            float noiseAmp = 0.8; // 默认振幅
             
-            // 在原始浮动位置和收缩位置之间插值
-            // 使用平滑的插值曲线 pow(uFist, 2.0) 让收缩感更强
-            pos = mix(pos, contractedPos, pow(uFist, 1.5) * 0.95);
+            // 绽放模式(uFist=0)下，振幅巨大；聚合模式(uFist=1)下，振幅为0
+            float bloomStr = 1.0 - uFist;
+            
+            vec3 noiseOffset = vec3(
+                snoise(vec3(pos.x * noiseFreq, pos.y * noiseFreq, uTime * 0.2)),
+                snoise(vec3(pos.y * noiseFreq, pos.z * noiseFreq, uTime * 0.2 + 10.0)),
+                snoise(vec3(pos.z * noiseFreq, pos.x * noiseFreq, uTime * 0.2 + 20.0))
+            );
+            
+            // 基础位置 + 噪声漂移(受绽放控制)
+            pos += noiseOffset * (noiseAmp + bloomStr * 4.0);
+            
+            // 2. 聚合核心引力
+            // 目标是收缩到 0,0,0 附近，但保留一点体积
+            vec3 corePos = normalize(originalPos) * (length(originalPos) * 0.1);
+            
+            // 混合：uFist 越大，越靠近 corePos
+            pos = mix(pos, corePos, pow(uFist, 3.0)); // pow让收缩更紧致
 
             vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+            
+            // 距离摄像机的距离，用于Fragment shader做光晕
+            vDist = length(mvPosition.xyz);
 
-            // 尺寸计算：握拳时粒子稍微变大变亮
-            float currentSize = size * (1.0 + uFist * 0.5);
-            gl_PointSize = currentSize * (180.0 / -mvPosition.z);
+            // 大小计算
+            float sizeMult = 1.0 + uFist * 1.5; // 聚合时变大
+            gl_PointSize = (size * sizeMult) * (200.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
-
-            // 边缘透明度衰减
-            vAlpha = smoothstep(600.0, 10.0, -mvPosition.z);
+            
+            vAlpha = 1.0;
         }
     </script>
 
-    <script type="x-shader/x-fragment" id="fragmentShader">
+    <script type="x-shader/x-fragment" id="fShader">
         uniform sampler2D pointTexture;
-        uniform float uFist;
+        uniform float uFist; 
+        
         varying vec3 vColor;
         varying float vAlpha;
         
         void main() {
-            vec4 texColor = texture2D(pointTexture, gl_PointCoord);
-            if(texColor.a < 0.1) discard;
+            vec2 coord = gl_PointCoord - vec2(0.5);
+            float dist = length(coord);
+            if(dist > 0.5) discard;
 
-            // 握拳时，核心更亮，边缘更锐利
-            float brightness = 1.0 + uFist * 1.5;
-            float alpha = vAlpha * texColor.a;
+            // 径向渐变，制造辉光感
+            float strength = 1.0 - (dist * 2.0);
+            strength = pow(strength, 1.5); 
+
+            vec3 finalColor = vColor;
             
-            // 绽放时更柔和，聚合时更锐利
-            alpha = smoothstep(0.0 + uFist*0.2, 1.0, alpha);
+            // 聚合时，颜色变白/变亮
+            finalColor = mix(finalColor, vec3(1.0), uFist * 0.5);
+            
+            // 核心亮度增强
+            gl_FragColor = vec4(finalColor, strength * vAlpha * (0.6 + uFist * 0.4));
+        }
+    </script>
 
-            gl_FragColor = vec4(vColor * brightness, alpha);
+    <script type="x-shader/x-vertex" id="bgVShader">
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+        }
+    </script>
+    <script type="x-shader/x-fragment" id="bgFShader">
+        uniform float uTime;
+        varying vec2 vUv;
+        
+        // Simple Noise
+        float random (in vec2 _st) { return fract(sin(dot(_st.xy, vec2(12.9898,78.233)))* 43758.5453123); }
+        float noise (in vec2 _st) {
+            vec2 i = floor(_st); vec2 f = fract(_st);
+            float a = random(i); float b = random(i + vec2(1.0, 0.0));
+            float c = random(i + vec2(0.0, 1.0)); float d = random(i + vec2(1.0, 1.0));
+            vec2 u = f * f * (3.0 - 2.0 * f);
+            return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+        }
+        float fbm ( in vec2 _st) {
+            float v = 0.0; float a = 0.5; vec2 shift = vec2(100.0);
+            mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.50));
+            for (int i = 0; i < 5; ++i) { v += a * noise(_st); _st = rot * _st * 2.0 + shift; a *= 0.5; }
+            return v;
+        }
+
+        void main() {
+            vec2 st = vUv * 3.0;
+            // 缓慢移动的迷雾
+            float q = fbm(st - uTime * 0.05);
+            vec2 r = vec2(fbm(st + q + uTime * 0.1), fbm(st + q - uTime * 0.05));
+            float f = fbm(st + r);
+            
+            // 颜色：深邃的蓝紫+黑色
+            vec3 color = mix(vec3(0.0, 0.0, 0.05), vec3(0.05, 0.1, 0.2), clamp((f*f)*4.0,0.0,1.0));
+            color = mix(color, vec3(0.0, 0.2, 0.3), clamp(length(r),0.0,1.0));
+            
+            gl_FragColor = vec4(color, 1.0);
         }
     </script>
 
     <script>
-        // --- DATA ---
-        const PLANETS_DB = [
-            { name: "Sun", type: "Star", color: [1.0, 0.7, 0.3], radius: 14, distance: 0, speed: 0, desc: "The heart of our system. A near-perfect sphere of hot plasma.", data: { dia: "1.4M km", temp: "5,500°C" } },
-            { name: "Mercury", type: "Terrestrial", color: [0.7, 0.7, 0.75], radius: 1.8, distance: 30, speed: 0.02, desc: "The smallest planet, closest to the Sun. A cratered, rocky body.", data: { dia: "4,879 km", temp: "167°C" } },
-            { name: "Venus", type: "Terrestrial", color: [0.9, 0.8, 0.5], radius: 3.2, distance: 45, speed: 0.015, desc: "Wrapped in thick, toxic clouds of sulfuric acid trapping heat.", data: { dia: "12,104 km", temp: "464°C" } },
-            { name: "Earth", type: "Terrestrial", color: [0.2, 0.6, 1.0], radius: 3.5, distance: 65, speed: 0.012, desc: "Our home world, the only place known to harbor life.", data: { dia: "12,742 km", temp: "15°C" } },
-            { name: "Mars", type: "Terrestrial", color: [0.9, 0.3, 0.2], radius: 2.5, distance: 85, speed: 0.01, desc: "The Red Planet, a dusty, cold desert world.", data: { dia: "6,779 km", temp: "-65°C" } },
-            { name: "Jupiter", type: "Gas Giant", color: [0.8, 0.7, 0.6], radius: 9, distance: 120, speed: 0.006, desc: "The largest planet, a massive ball of gas and liquid metal.", data: { dia: "139,820 km", temp: "-110°C" } },
-            { name: "Saturn", type: "Gas Giant", color: [0.85, 0.8, 0.55], radius: 8, distance: 155, speed: 0.005, hasRings: true, desc: "Famous for its dazzling, complex system of icy rings.", data: { dia: "116,460 km", temp: "-140°C" } },
-            { name: "Uranus", type: "Ice Giant", color: [0.5, 0.8, 0.9], radius: 5, distance: 190, speed: 0.004, desc: "An ice giant rotating on its side.", data: { dia: "50,724 km", temp: "-195°C" } },
-            { name: "Neptune", type: "Ice Giant", color: [0.3, 0.4, 0.8], radius: 5, distance: 220, speed: 0.003, desc: "Dark, cold, and whipped by supersonic winds.", data: { dia: "49,244 km", temp: "-200°C" } }
+        // --- 核心配置 ---
+        // 紧凑型布局：不再使用真实天文距离，而是为了视觉服务的艺术化布局
+        const PLANETS = [
+            { name: "SUN", radius: 15, dist: 0, speed: 0, color: [1.0, 0.4, 0.1], desc: "Main Sequence Star", data: {d:"1.39M", t:"5505"} },
+            { name: "MERCURY", radius: 2, dist: 25, speed: 0.8, color: [0.7, 0.7, 0.8], desc: "Rocky, cratered surface.", data: {d:"4879", t:"167"} },
+            { name: "VENUS", radius: 3.5, dist: 38, speed: 0.6, color: [0.9, 0.6, 0.4], desc: "Toxic atmosphere.", data: {d:"12104", t:"464"} },
+            { name: "EARTH", radius: 4, dist: 55, speed: 0.5, color: [0.2, 0.5, 1.0], desc: "Blue Marble.", data: {d:"12756", t:"15"} },
+            { name: "MARS", radius: 3, dist: 70, speed: 0.4, color: [1.0, 0.2, 0.1], desc: "Red dust & rust.", data: {d:"6792", t:"-65"} },
+            { name: "JUPITER", radius: 10, dist: 100, speed: 0.2, color: [0.8, 0.6, 0.4], desc: "Gas Giant King.", data: {d:"142984", t:"-110"} },
+            { name: "SATURN", radius: 9, dist: 140, speed: 0.15, color: [0.9, 0.8, 0.5], ring: true, desc: "Lord of the Rings.", data: {d:"120536", t:"-140"} },
+            { name: "URANUS", radius: 6, dist: 180, speed: 0.1, color: [0.4, 0.9, 0.9], desc: "Ice Giant.", data: {d:"51118", t:"-195"} },
+            { name: "NEPTUNE", radius: 6, dist: 220, speed: 0.08, color: [0.2, 0.2, 0.8], desc: "Windy World.", data: {d:"49528", t:"-200"} },
         ];
 
-        // --- GLOBAL VARS ---
         let scene, camera, renderer, controls;
-        let uniforms;
-        let solarSystemGroup, orbitSystemGroup;
         let planetMeshes = [];
-        let focusedPlanetIdx = -1;
-        let globalSpeed = 1.0;
+        let planetGroups = []; // 用于公转的组
+        let uniforms, bgUniforms;
+        
+        // 状态管理
+        let state = {
+            focusedIndex: -1, // -1 = Overview
+            fistValue: 0.0,   // 0=Open, 1=Closed (Lerped)
+            targetFist: 0.0,
+            camPos: new THREE.Vector3(0, 60, 100), // 初始位置更近，解决“看不清”
+            lookAt: new THREE.Vector3(0, 0, 0)
+        };
 
-        // Camera & Interaction State
-        let targetCamPos = new THREE.Vector3(0, 70, 220);
-        let currentCamPos = new THREE.Vector3(0, 70, 220);
-        let targetLookAt = new THREE.Vector3(0, 0, 0);
-        let currentLookAt = new THREE.Vector3(0, 0, 0);
-        let handFistValue = 0.0; // 0.0 - 1.0 平滑过渡值
-
-        // --- INIT ---
-        document.getElementById('start-btn').addEventListener('click', async function() {
-            this.innerText = "Initializing...";
-            await startCamera();
+        // --- 初始化 ---
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('loader').style.opacity = 0;
+            setTimeout(() => document.getElementById('loader').style.display = 'none', 1000);
+            initVideo();
             init3D();
-            createUI();
-            animate();
-            document.getElementById('overlay').style.opacity = 0;
-            setTimeout(() => document.getElementById('overlay').style.display = 'none', 800);
         });
 
         function init3D() {
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
-            // 使用更通透的雾，增加景深感
-            scene.fog = new THREE.FogExp2(0x020203, 0.001);
+            
+            // 相机设置：使用更近的视角，FOV稍微广角一点增加冲击力
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 60, 100); 
 
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-            camera.position.copy(currentCamPos);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            // 使用加法混合的预乘 Alpha 设置，让粒子更亮
-            renderer.setClearColor(0x020203, 1);
+            renderer.setClearColor(0x000000, 1);
             container.appendChild(renderer.domElement);
 
-            // --- 需求 2: 添加 OrbitControls ---
+            // Orbit Controls
             controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true; // 启用阻尼（惯性），让操作更丝滑
+            controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.enablePan = false; // 禁止平移，只允许旋转和缩放
-            controls.minDistance = 20;
-            controls.maxDistance = 500;
-            controls.autoRotate = true; // 初始自动旋转
-            controls.autoRotateSpeed = 0.5;
+            controls.maxDistance = 400;
+            controls.minDistance = 5;
+            controls.enablePan = false; // 禁止平移，防止用户迷失
 
-            solarSystemGroup = new THREE.Group();
-            orbitSystemGroup = new THREE.Group();
-            scene.add(solarSystemGroup);
-            scene.add(orbitSystemGroup);
+            // 1. 创建星云背景 (Giant Sphere)
+            createBackground();
 
+            // 2. 创建太阳系
             uniforms = {
                 uTime: { value: 0 },
-                uFist: { value: 0.0 },
-                pointTexture: { value: createSoftTexture() }
+                uFist: { value: 0 },
+                pointTexture: { value: createGlowTexture() }
             };
 
-            PLANETS_DB.forEach((data, index) => {
-                const planetObj = createPlanet(data, uniforms);
-                planetObj.userData = { angle: Math.random() * Math.PI * 2, distance: data.distance, speed: data.speed };
-                planetObj.position.set(Math.cos(planetObj.userData.angle) * data.distance, 0, Math.sin(planetObj.userData.angle) * data.distance);
-                solarSystemGroup.add(planetObj);
-                planetMeshes.push(planetObj);
-                if(data.distance > 0) createOrbitDust(data.distance);
-            });
+            createSolarSystem();
+            createUI();
 
-            createBackgroundStars();
+            animate();
             window.addEventListener('resize', onResize);
         }
 
-        // --- PARTICLE CREATION (Updated for new shader attributes) ---
-        function createPlanet(data, uniforms) {
-            const group = new THREE.Group();
-            const count = data.name === "Sun" ? 8000 : 2500;
-            const geometry = new THREE.BufferGeometry();
+        function createBackground() {
+            const geom = new THREE.SphereGeometry(450, 32, 32);
+            bgUniforms = { uTime: { value: 0 } };
+            const mat = new THREE.ShaderMaterial({
+                uniforms: bgUniforms,
+                vertexShader: document.getElementById('bgVShader').textContent,
+                fragmentShader: document.getElementById('bgFShader').textContent,
+                side: THREE.BackSide 
+            });
+            const mesh = new THREE.Mesh(geom, mat);
+            scene.add(mesh);
+        }
+
+        function createSolarSystem() {
+            PLANETS.forEach((p, i) => {
+                // 结构：PivotGroup(公转中心) -> MeshGroup(行星本体)
+                // 这样我们可以只旋转 PivotGroup 来实现公转，而不需要计算 sin/cos
+                const pivot = new THREE.Group();
+                scene.add(pivot);
+                
+                const meshGroup = createPlanetMesh(p, uniforms);
+                meshGroup.position.x = p.dist; // 设置初始距离
+                pivot.add(meshGroup);
+
+                // 保存引用
+                planetGroups.push({ pivot: pivot, speed: p.speed, dist: p.dist });
+                planetMeshes.push(meshGroup); 
+
+                // 轨道线 (微弱的灰尘圈)
+                if(p.dist > 0) createOrbitRing(p.dist);
+            });
+        }
+
+        function createPlanetMesh(p, uniforms) {
+            const count = p.name === "SUN" ? 15000 : 4000; // 粒子数量翻倍！
+            const geom = new THREE.BufferGeometry();
             const positions = [];
-            const originalPositions = []; // 新增：存储初始位置用于恢复
             const colors = [];
             const sizes = [];
-            const variations = [];
-
-            const colorBase = new THREE.Color(data.color[0], data.color[1], data.color[2]);
-            const hsl = {}; colorBase.getHSL(hsl);
-
-            for (let i = 0; i < count; i++) {
-                // 使用球体分布，但稍微压扁一点点
-                const r = data.radius * (0.8 + Math.random() * 0.4);
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos(Math.random() * 2 - 1);
-
-                let x = r * Math.sin(phi) * Math.cos(theta);
-                let y = r * Math.sin(phi) * Math.sin(theta) * 0.9; // 略微压扁
-                let z = r * Math.cos(phi);
-
-                // 太阳有更厚的大气层
-                if (data.name === "Sun" && Math.random() > 0.6) {
-                    const rAtm = data.radius * (1.2 + Math.random() * 0.8);
-                     x = rAtm * Math.sin(phi) * Math.cos(theta);
-                     y = rAtm * Math.sin(phi) * Math.sin(theta);
-                     z = rAtm * Math.cos(phi);
-                }
-
-                positions.push(x, y, z);
-                originalPositions.push(x, y, z); // 记录原始位置
-
-                // 颜色变奏
-                const c = new THREE.Color().setHSL(hsl.h + (Math.random()-0.5)*0.1, hsl.s, hsl.l + (Math.random()-0.5)*0.2);
-                colors.push(c.r, c.g, c.b);
-                // 尺寸变奏
-                sizes.push(data.radius * (0.05 + Math.random() * 0.1));
-                variations.push(Math.random());
-            }
+            const seeds = [];
             
-            // 土星环 (简化为圆盘粒子)
-            if(data.hasRings) {
-                for(let i=0; i<1200; i++) {
-                    const r = data.radius * (1.4 + Math.random() * 1.8);
+            const baseColor = new THREE.Color(p.color[0], p.color[1], p.color[2]);
+            const tempColor = new THREE.Color();
+
+            for(let i=0; i<count; i++) {
+                // 粒子分布：球体体积分布
+                const r = p.radius * Math.cbrt(Math.random()); // cbrt使分布均匀
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(Math.random() * 2 - 1);
+                
+                const x = r * Math.sin(phi) * Math.cos(theta);
+                const y = r * Math.sin(phi) * Math.sin(theta);
+                const z = r * Math.cos(phi);
+                
+                positions.push(x, y, z);
+                
+                // 颜色随机微调
+                tempColor.copy(baseColor);
+                // 太阳中心亮白，边缘红；行星增加一些青色辉光
+                if(p.name !== "SUN") {
+                    tempColor.lerp(new THREE.Color(0x00f3ff), Math.random() * 0.2); // 混入赛博青
+                } else {
+                    tempColor.lerp(new THREE.Color(1, 1, 0), Math.random() * 0.5);
+                }
+                colors.push(tempColor.r, tempColor.g, tempColor.b);
+                
+                sizes.push(Math.random() * 1.5 + 0.5);
+                seeds.push(Math.random() * 100);
+            }
+
+            // 土星环
+            if(p.ring) {
+                const ringCount = 3000;
+                for(let i=0; i<ringCount; i++) {
+                    const r = p.radius * (1.5 + Math.random());
                     const theta = Math.random() * Math.PI * 2;
-                    const x = r * Math.cos(theta);
-                    const y = (Math.random()-0.5) * 0.3;
-                    const z = r * Math.sin(theta);
-                    positions.push(x,y,z); originalPositions.push(x,y,z);
-                    colors.push(colorBase.r*0.7, colorBase.g*0.7, colorBase.b*0.8);
-                    sizes.push(0.4); variations.push(Math.random());
+                    positions.push(r*Math.cos(theta), (Math.random()-0.5)*0.5, r*Math.sin(theta));
+                    colors.push(0.8, 0.8, 0.7);
+                    sizes.push(0.8);
+                    seeds.push(Math.random() * 100);
                 }
             }
 
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('originalPos', new THREE.Float32BufferAttribute(originalPositions, 3)); // Pass original pos
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-            geometry.setAttribute('variation', new THREE.Float32BufferAttribute(variations, 1));
+            geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); // initial pos (not used directly in shader logic but needed for buffer)
+            geom.setAttribute('originalPos', new THREE.Float32BufferAttribute(positions, 3)); // custom attr for shader
+            geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geom.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+            geom.setAttribute('randomSeed', new THREE.Float32BufferAttribute(seeds, 1));
 
-            const material = new THREE.ShaderMaterial({
+            const mat = new THREE.ShaderMaterial({
                 uniforms: uniforms,
-                vertexShader: document.getElementById('vertexShader').textContent,
-                fragmentShader: document.getElementById('fragmentShader').textContent,
-                blending: THREE.AdditiveBlending, // 关键：加法混合创造发光感
+                vertexShader: document.getElementById('vShader').textContent,
+                fragmentShader: document.getElementById('fShader').textContent,
+                blending: THREE.AdditiveBlending,
                 depthTest: false,
-                transparent: true,
-                vertexColors: true
+                transparent: true
             });
-            group.add(new THREE.Points(geometry, material));
-            return group;
+
+            const mesh = new THREE.Points(geom, mat);
+            return mesh;
         }
 
-        function createOrbitDust(radius) {
-            const geometry = new THREE.BufferGeometry();
-            const positions = []; const colors = [];
-            for (let i = 0; i < 400; i++) {
-                const angle = (i / 400) * Math.PI * 2;
-                const r = radius + (Math.random() - 0.5) * 1.5;
-                positions.push(Math.cos(angle) * r, (Math.random()-0.5)*0.8, Math.sin(angle) * r);
-                colors.push(0.3, 0.3, 0.35);
+        function createOrbitRing(radius) {
+            const pts = [];
+            for(let i=0; i<128; i++){
+                const t = (i/128)*Math.PI*2;
+                pts.push(new THREE.Vector3(Math.cos(t)*radius, 0, Math.sin(t)*radius));
             }
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-            const material = new THREE.PointsMaterial({ size: 0.4, vertexColors: true, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending });
-            orbitSystemGroup.add(new THREE.Points(geometry, material));
+            pts.push(pts[0]); // close loop
+            const geom = new THREE.BufferGeometry().setFromPoints(pts);
+            const mat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.08 });
+            scene.add(new THREE.Line(geom, mat));
         }
 
-        function createBackgroundStars() {
-            const geometry = new THREE.BufferGeometry();
-            const positions = [];
-            for (let i = 0; i < 3000; i++) {
-                const r = 500 + Math.random() * 500;
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos(Math.random() * 2 - 1);
-                positions.push(r*Math.sin(phi)*Math.cos(theta), r*Math.sin(phi)*Math.sin(theta), r*Math.cos(phi));
-            }
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            scene.add(new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0x666666, size: 1.2, transparent: true, opacity: 0.6 })));
-        }
-
-        // 制作更柔和、中心发亮的纹理
-        function createSoftTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 64; canvas.height = 64;
-            const ctx = canvas.getContext('2d');
-            const g = ctx.createRadialGradient(32,32,0,32,32,32);
+        function createGlowTexture() {
+            const c = document.createElement('canvas');
+            c.width=32; c.height=32;
+            const ctx = c.getContext('2d');
+            const g = ctx.createRadialGradient(16,16,0,16,16,16);
             g.addColorStop(0, 'rgba(255,255,255,1)');
-            g.addColorStop(0.3, 'rgba(255,255,255,0.4)');
+            g.addColorStop(0.5, 'rgba(255,255,255,0.2)');
             g.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = g;
-            ctx.fillRect(0,0,64,64);
-            const tex = new THREE.Texture(canvas);
-            tex.needsUpdate = true;
-            return tex;
+            ctx.fillStyle = g; ctx.fillRect(0,0,32,32);
+            return new THREE.Texture(c);
         }
 
-        // --- UI & INTERACTION ---
-        function createUI() {
-            const menu = document.getElementById('planet-menu');
-            PLANETS_DB.forEach((p, i) => {
-                const btn = document.createElement('div');
-                btn.className = 'planet-btn'; btn.id = `btn-${i}`;
-                btn.innerHTML = `<span>${p.name}</span><span style="font-size:10px; opacity:0.3">○</span>`;
-                btn.onclick = () => focusPlanet(i);
-                menu.appendChild(btn);
-            });
-        }
-
-        window.focusPlanet = function(index) {
-            focusedPlanetIdx = index;
-            document.querySelectorAll('.planet-btn').forEach(b => b.classList.remove('active'));
+        // --- 逻辑与动画 ---
+        function focusPlanet(index) {
+            state.focusedIndex = index;
+            const uiNavs = document.querySelectorAll('.nav-btn');
+            uiNavs.forEach(b => b.classList.remove('active'));
+            
+            const card = document.getElementById('info-card');
             
             if(index === -1) {
-                document.querySelector('.planet-btn').classList.add('active');
-                toggleInfoPanel(false);
-                // 恢复总览视角
-                targetCamPos.set(0, 70, 220);
-                targetLookAt.set(0, 0, 0);
-                globalSpeed = 1.0;
-                controls.autoRotate = true; // 恢复自动旋转
-                controls.minDistance = 20;
+                // Overview Mode
+                uiNavs[0].classList.add('active');
+                card.classList.remove('visible');
+                // 相机回到高处
+                new TWEEN.Tween(camera.position).to({x:0, y:80, z:120}, 1500).easing(TWEEN.Easing.Cubic.Out).start();
+                // 恢复自动旋转
+                controls.autoRotate = true;
+                controls.minDistance = 5; 
             } else {
-                document.getElementById(`btn-${index}`).classList.add('active');
-                updateInfoPanel(index);
-                globalSpeed = 0.1; // 聚焦时时间变慢
-                controls.autoRotate = false; // 聚焦时停止自动旋转，交给用户控制
+                // Focus Mode
+                document.getElementById(`nav-${index}`).classList.add('active');
                 
-                // --- 需求 3: 镜头居中聚焦 ---
-                const targetMesh = planetMeshes[index];
-                const planetPos = targetMesh.position.clone();
-                const radius = PLANETS_DB[index].radius;
-                
-                // 计算摄像机位置：位于行星和太阳连线上，靠近日球侧
-                // 这样能看到被太阳照亮的一面
-                const vecFromSun = planetPos.clone().normalize();
-                // 距离取决于行星半径，确保填满屏幕中心
-                const viewDistance = radius * 5.0 + 15; 
-                const newCamPos = planetPos.clone().add(vecFromSun.multiplyScalar(-viewDistance));
-                // 稍微抬高一点视角
-                newCamPos.y += viewDistance * 0.2;
+                // 更新 UI 卡片
+                const p = PLANETS[index];
+                document.getElementById('p-name').innerText = p.name;
+                document.getElementById('p-type').innerText = p.desc;
+                document.getElementById('p-desc').innerText = `Distance from Sun: ${p.dist} AU`;
+                document.getElementById('p-dia').innerText = p.data.d;
+                document.getElementById('p-tmp').innerText = p.data.t;
+                card.classList.add('visible');
 
-                targetCamPos.copy(newCamPos);
-                targetLookAt.copy(planetPos); // 目标点锁定行星中心
-
-                // 允许在聚焦时拉得更近
-                controls.minDistance = radius * 2.0;
-            }
-        };
-
-        function updateInfoPanel(index) {
-            const data = PLANETS_DB[index];
-            document.getElementById('info-name').innerText = data.name;
-            document.getElementById('info-type').innerText = data.type;
-            document.getElementById('info-desc').innerText = data.desc;
-            document.getElementById('info-dia').innerText = data.data.dia;
-            document.getElementById('info-temp').innerText = data.data.temp;
-            toggleInfoPanel(true);
-        }
-
-        window.toggleInfoPanel = function(forceState) {
-            const panel = document.getElementById('info-panel');
-            if (typeof forceState !== 'undefined') {
-                panel.classList.toggle('visible', forceState);
-            } else {
-                panel.classList.toggle('visible');
+                // 停止自动旋转，交给 Lock-on 系统
+                controls.autoRotate = false;
             }
         }
 
-        // --- ANIMATION LOOP ---
         function animate() {
             requestAnimationFrame(animate);
-            const time = performance.now() * 0.001;
+            const time = performance.now() * 0.0005;
             uniforms.uTime.value = time;
+            bgUniforms.uTime.value = time;
+            TWEEN.update();
 
-            // 平滑过渡握拳值
-            uniforms.uFist.value += (handFistValue - uniforms.uFist.value) * 0.1;
-
-            // 行星公转
-            planetMeshes.forEach((mesh, i) => {
-                if (PLANETS_DB[i].distance === 0) return;
-                mesh.userData.angle += mesh.userData.speed * globalSpeed;
-                mesh.position.set(
-                    Math.cos(mesh.userData.angle) * mesh.userData.distance,
-                    0,
-                    Math.sin(mesh.userData.angle) * mesh.userData.distance
-                );
-                // 自转（视觉效果）
-                mesh.rotation.y += 0.002;
+            // 1. 行星公转 (旋转 Pivot Group)
+            planetGroups.forEach(g => {
+                g.pivot.rotation.y += g.speed * 0.002;
             });
 
-            // 摄像机平滑移动 (简单的 LERP)
-            // 注意：当 OrbitControls 激活时，它会覆盖 camera.lookAt
-            // 所以我们需要更新 controls.target
-            currentCamPos.lerp(targetCamPos, 0.04);
-            currentLookAt.lerp(targetLookAt, 0.04);
-            
-            camera.position.copy(currentCamPos);
-            controls.target.copy(currentLookAt);
-            
-            // 更新控制器
-            controls.update();
+            // 2. 核心逻辑：镜头锁定系统 (Camera Lock-on)
+            // 解决“镜头没有居中”的关键：每一帧都更新 Controls 的 Target
+            if (state.focusedIndex !== -1) {
+                const targetGroup = planetGroups[state.focusedIndex];
+                const targetMesh = planetMeshes[state.focusedIndex];
+                
+                // 获取行星的世界坐标（因为它在旋转的 Pivot 里）
+                const worldPos = new THREE.Vector3();
+                targetMesh.getWorldPosition(worldPos);
 
+                // A. 锁定靶心：让 OrbitControls 永远看着行星当前位置
+                controls.target.lerp(worldPos, 0.1); 
+
+                // B. 智能跟随：摄像机保持相对位置
+                // 如果不做这个，行星转远了，相机会留在原地
+                // 简单的跟随策略：保持在行星连线外侧
+                const offset = worldPos.clone().normalize().multiplyScalar(PLANETS[state.focusedIndex].radius * 4 + 10);
+                offset.y += 5; // 稍微俯视
+                
+                // 平滑插值相机位置，避免抖动
+                // 注意：这里只微调，主要还是靠 OrbitControls 用户操作
+                // 只有在刚切换时强制飞过去，之后让用户自由旋转
+            } else {
+                controls.target.lerp(new THREE.Vector3(0,0,0), 0.05);
+            }
+
+            // 3. 手势平滑过渡
+            state.fistValue += (state.targetFist - state.fistValue) * 0.1;
+            uniforms.uFist.value = state.fistValue;
+
+            controls.update();
             renderer.render(scene, camera);
+        }
+
+        // --- UI 生成 ---
+        function createUI() {
+            const container = document.getElementById('nav-container');
+            
+            // Overview Btn
+            const btnAll = document.createElement('button');
+            btnAll.className = 'nav-btn active';
+            btnAll.innerHTML = `<span>SYSTEM OVERVIEW</span> <span>●</span>`;
+            btnAll.onclick = () => focusPlanet(-1);
+            container.appendChild(btnAll);
+
+            PLANETS.forEach((p, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'nav-btn';
+                btn.id = `nav-${i}`;
+                btn.innerHTML = `<span>${p.name}</span> <span style="font-size:10px; opacity:0.5">${p.dist===0?'★':'○'}</span>`;
+                btn.onclick = () => {
+                    focusPlanet(i);
+                    // 点击瞬间，移动相机到行星附近 (Tween)
+                    const mesh = planetMeshes[i];
+                    const worldPos = new THREE.Vector3();
+                    mesh.getWorldPosition(worldPos);
+                    
+                    const radius = p.radius;
+                    // 计算理想位置：在行星外侧
+                    const endPos = worldPos.clone().add(new THREE.Vector3(0, radius, radius*4));
+                    
+                    new TWEEN.Tween(camera.position)
+                        .to({x: endPos.x, y: endPos.y, z: endPos.z}, 1000)
+                        .easing(TWEEN.Easing.Cubic.Out)
+                        .start();
+                };
+                container.appendChild(btn);
+            });
         }
 
         function onResize() {
@@ -535,41 +629,37 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // --- MEDIA PIPE ---
-        async function startCamera() {
+        // --- 简单的 MediaPipe 接入 (可选) ---
+        async function initVideo() {
             const video = document.getElementById('input-video');
-            const statusDot = document.getElementById('status-dot');
-            const statusText = document.getElementById('status-text');
+            const bloomHint = document.getElementById('hint-bloom');
+            const focusHint = document.getElementById('hint-focus');
 
             const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
-
-            hands.onResults((results) => {
-                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                    statusDot.classList.add('active');
-                    statusText.innerText = "Gesture Active";
+            hands.setOptions({maxNumHands: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
+            
+            hands.onResults(results => {
+                if(results.multiHandLandmarks.length > 0) {
                     const lm = results.multiHandLandmarks[0];
-                    
-                    // 简单的握拳检测：检查指尖是否靠近手掌根部
-                    // 比较食指指尖(8)和食指根部(5)与手腕(0)的距离比
+                    // 简单的张开/握拳判断
+                    // 比较中指指尖(12)到掌根(0)的距离 vs 中指根部(9)到掌根(0)
                     const wrist = lm[0];
-                    const indexTip = lm[8];
-                    const indexBase = lm[5];
-                    const tipDist = Math.hypot(indexTip.x - wrist.x, indexTip.y - wrist.y);
-                    const baseDist = Math.hypot(indexBase.x - wrist.x, indexBase.y - wrist.y);
+                    const tip = lm[12];
+                    const base = lm[9];
                     
-                    // 如果指尖距离小于根部距离的某种比例，认为是握拳
-                    // 1.0 = 完全握紧 (聚合), 0.0 = 完全张开 (绽放)
-                    if (tipDist < baseDist * 0.9) {
-                         handFistValue = 1.0; // 握拳：聚合
+                    const distTip = Math.hypot(tip.x-wrist.x, tip.y-wrist.y);
+                    const distBase = Math.hypot(base.x-wrist.x, base.y-wrist.y);
+                    
+                    if(distTip < distBase * 1.2) {
+                        state.targetFist = 1.0; // 握拳
+                        focusHint.classList.add('active'); bloomHint.classList.remove('active');
                     } else {
-                         handFistValue = 0.0; // 张开：绽放
+                        state.targetFist = 0.0; // 张开
+                        focusHint.classList.remove('active'); bloomHint.classList.add('active');
                     }
-
                 } else {
-                    statusDot.classList.remove('active');
-                    statusText.innerText = "Scanning hand...";
-                    handFistValue = 0.0; // 默认张开
+                    state.targetFist = 0.0;
+                    focusHint.classList.remove('active'); bloomHint.classList.remove('active');
                 }
             });
 
@@ -577,8 +667,14 @@
                 onFrame: async () => { await hands.send({image: video}); },
                 width: 320, height: 240
             });
-            await cameraUtils.start();
+            cameraUtils.start();
         }
+
+        // 引入 TWEEN
+        const script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js";
+        document.head.appendChild(script);
+
     </script>
 </body>
 </html>
