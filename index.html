@@ -3,25 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Solar Dust XVIII - Mobile & Gravity</title>
+    <title>Solar Dust XIX - Full UI Control</title>
     <style>
         :root { --bg: #000; --panel: rgba(20,20,20,0.6); --border: rgba(255,255,255,0.15); --accent: #fff; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: "Segoe UI", sans-serif; -webkit-user-select: none; user-select: none; }
         
         #canvas-container { position: absolute; inset: 0; z-index: 1; }
-        /* 关键修复：移动端必须静音且内联播放才能被JS读取 */
         #input-video { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; z-index: -1; }
 
         /* UI 通用 */
         .ui { position: absolute; z-index: 10; width: 100%; height: 100%; pointer-events: none; color: #ccc; }
-        .panel { pointer-events: auto; background: var(--panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 6px; }
+        .panel { pointer-events: auto; background: var(--panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 6px; transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1); }
 
-        /* 1. 左上：导航 */
+        /* --- 1. 左上：导航 (新增折叠功能) --- */
         #nav { 
-            position: absolute; top: 20px; left: 20px; width: 130px; 
-            max-height: 50vh; overflow-y: auto; padding: 5px;
-            transition: opacity 0.3s;
+            position: absolute; top: 20px; left: 20px; width: 140px; 
+            max-height: 50vh; overflow: hidden; /* 关键：隐藏溢出 */
+            display: flex; flex-direction: column;
         }
+        
+        /* 导航折叠状态 */
+        #nav.collapsed {
+            width: 36px; height: 36px; overflow: hidden;
+            background: rgba(0,0,0,0.8); border-color: rgba(255,255,255,0.2);
+        }
+        #nav.collapsed #nav-content { opacity: 0; pointer-events: none; }
+        #nav.collapsed #nav-toggle { transform: rotate(180deg); }
+
+        /* 导航内容容器 */
+        #nav-content {
+            padding: 5px; overflow-y: auto; transition: opacity 0.3s;
+            margin-top: 25px; /* 给顶部按钮留空间 */
+            height: 100%;
+        }
+
+        /* 导航切换按钮 */
+        #nav-toggle {
+            position: absolute; top: 8px; left: 8px; width: 20px; height: 20px;
+            background: none; border: none; color: #fff; cursor: pointer; font-size: 10px;
+            transition: transform 0.3s; z-index: 5; display: flex; align-items: center; justify-content: center;
+        }
+
         .btn {
             display: block; width: 100%; background: none; border: none; position: relative;
             color: #888; text-align: left; padding: 10px 8px; cursor: pointer;
@@ -30,7 +52,7 @@
         .btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
         .btn.active { color: #fff; font-weight: bold; background: rgba(255,255,255,0.1); border-left: 3px solid #fff; }
 
-        /* 2. 右上：语言 */
+        /* --- 2. 右上：语言 --- */
         #lang-container {
             position: absolute; top: 20px; right: 20px; 
             pointer-events: auto; display: flex; align-items: center;
@@ -46,7 +68,7 @@
             background: #fff; border-radius: 16px; z-index: 1; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); width: 0;
         }
 
-        /* 3. 底部：仪表盘 */
+        /* --- 3. 底部：仪表盘 --- */
         #hud-container {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
             width: 280px; background: rgba(0,0,0,0.8); border: 1px solid var(--border);
@@ -62,36 +84,32 @@
         #gesture-track { width: 100%; height: 4px; background: #222; border-radius: 2px; overflow: hidden; margin-top: 5px; }
         #gesture-fill { width: 0%; height: 100%; background: #0f0; transition: width 0.1s; }
 
-        /* 4. 右下：详情面板 (带折叠功能) */
+        /* --- 4. 右下：详情面板 (折叠) --- */
         #info-card {
             position: absolute; bottom: 140px; right: 20px; width: 220px;
-            padding: 15px; transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
-            opacity: 0; transform: translateY(20px); height: auto; overflow: hidden;
+            padding: 15px; opacity: 0; transform: translateY(20px); height: auto; overflow: hidden;
         }
         #info-card.show { opacity: 1; transform: translateY(0); }
-        /* 折叠状态 */
         #info-card.collapsed { 
-            height: 30px; padding: 0 15px; width: 100px; bottom: 140px; right: 20px;
+            height: 30px; padding: 0 15px; width: 80px; bottom: 140px; right: 20px;
             background: rgba(0,0,0,0.8); border-color: rgba(255,255,255,0.2);
             display: flex; align-items: center; justify-content: center;
         }
-        /* 折叠时隐藏内部内容 */
         #info-card.collapsed .info-content { opacity: 0; pointer-events: none; }
-        #info-card.collapsed #toggle-btn { transform: rotate(180deg); }
+        #info-card.collapsed #info-toggle { transform: rotate(180deg); }
 
         .info-content { transition: opacity 0.3s; }
         .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: monospace; font-size: 10px; color: #aaa; margin-top: 15px; }
         .data-item span { display: block; color: #666; font-size: 9px; margin-bottom: 2px; }
 
-        /* 折叠按钮 */
-        #toggle-btn {
+        #info-toggle {
             position: absolute; top: 10px; right: 10px; width: 20px; height: 20px;
             background: none; border: none; color: #fff; cursor: pointer; font-size: 12px;
             transition: transform 0.3s; z-index: 5;
         }
-        #toggle-text { display: none; font-size: 10px; letter-spacing: 1px; color: #fff; }
-        #info-card.collapsed #toggle-text { display: block; }
-        #info-card.collapsed #toggle-btn { top: 6px; right: 5px; } /* 调整折叠后图标位置 */
+        #info-toggle-text { display: none; font-size: 10px; letter-spacing: 1px; color: #fff; }
+        #info-card.collapsed #info-toggle-text { display: block; }
+        #info-card.collapsed #info-toggle { top: 6px; right: 5px; }
 
         /* 启动页 */
         #cover { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.8s; }
@@ -109,14 +127,18 @@
 <body>
 
     <div id="cover">
-        <div style="font-size: 24px; letter-spacing: 8px; color: #ddd; text-align:center;">SOLAR XVIII</div>
-        <div style="font-size: 10px; color: #666; margin-top: 10px; letter-spacing: 2px;">MOBILE & GRAVITY</div>
+        <div style="font-size: 24px; letter-spacing: 8px; color: #ddd; text-align:center;">SOLAR XIX</div>
+        <div style="font-size: 10px; color: #666; margin-top: 10px; letter-spacing: 2px;">FULL UI CONTROL</div>
         <button id="btn-start">INITIALIZE</button>
         <div id="error-msg"></div>
     </div>
 
     <div class="ui">
-        <div class="panel" id="nav"></div>
+        <div class="panel" id="nav">
+            <button id="nav-toggle" onclick="toggleNav()">◀</button>
+            <div id="nav-content">
+                </div>
+        </div>
         
         <div id="lang-container">
             <div id="lang-slider"></div>
@@ -148,8 +170,8 @@
         </div>
 
         <div class="panel" id="info-card">
-            <button id="toggle-btn" onclick="toggleInfo()">▼</button>
-            <span id="toggle-text">INFO</span>
+            <button id="info-toggle" onclick="toggleInfo()">▼</button>
+            <span id="info-toggle-text">INFO</span>
             <div class="info-content">
                 <h1 id="p-name" style="margin:0; font-weight:100; letter-spacing:2px; font-size:24px; color:#fff;">EARTH</h1>
                 <span id="p-desc" style="font-size:10px; color:#888; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:15px;">Habitable Zone</span>
@@ -198,8 +220,7 @@
 
     <script>
         const LANG={CN:{lbl:{dia:"直径",tmp:"温度",grav:"重力",day:"自转"},sys:"星系全览",sun:"太阳",mer:"水星",ven:"金星",ear:"地球",mar:"火星",jup:"木星",sat:"土星",ura:"天王星",nep:"海王星",desc:{sun:"主序星",mer:"岩石行星",ven:"浓厚大气",ear:"蓝色星球",mar:"红色沙漠",jup:"气体巨星",sat:"光环行星",ura:"冰巨星",nep:"蓝色冰球"},hud:{cam:"相机",hand:"手势",act_form:"实体",act_mist:"星云"}},EN:{lbl:{dia:"DIAMETER",tmp:"TEMP",grav:"GRAVITY",day:"DAY"},sys:"SYSTEM VIEW",sun:"SUN",mer:"MERCURY",ven:"VENUS",ear:"EARTH",mar:"MARS",jup:"JUPITER",sat:"SATURN",ura:"URANUS",nep:"NEPTUNE",desc:{sun:"Main Sequence",mer:"Rocky World",ven:"Thick Atmosphere",ear:"Blue Marble",mar:"Red Desert",jup:"Gas Giant",sat:"Ringed Jewel",ura:"Ice Giant",nep:"Deep Blue"},hud:{cam:"CAM",hand:"HAND",act_form:"FORM",act_mist:"MIST"}}};
-        // 省略其他语言以节省篇幅，逻辑通用
-        LANG.DE=LANG.EN; LANG.FR=LANG.EN; LANG.ES=LANG.EN; LANG.IT=LANG.EN; // 占位，实际可复制之前的字典
+        LANG.DE=LANG.EN; LANG.FR=LANG.EN; LANG.ES=LANG.EN; LANG.IT=LANG.EN; 
 
         let curLang = 'CN';
         const DB = [
@@ -217,16 +238,9 @@
 
         let scene, camera, renderer, controls, uniforms;
         let planets = [], activeIdx = -1;
-        
-        // --- 核心交互状态 ---
-        let state = { 
-            disperse: 0.0, 
-            targetDisperse: 0.0,
-            handX: 0, handY: 0, // 手部位置 (-1 到 1)
-            targetHandX: 0, targetHandY: 0
-        };
+        let state = { disperse: 0.0, targetDisperse: 0.0, handX: 0, handY: 0, targetHandX: 0, targetHandY: 0 };
 
-        // --- 入口 ---
+        // --- Init ---
         document.getElementById('btn-start').addEventListener('click', () => {
             const btn = document.getElementById('btn-start');
             btn.innerText = "STARTING...";
@@ -241,16 +255,15 @@
                 btn.style.display = 'none';
                 const msg = document.getElementById('error-msg');
                 msg.style.display = 'block';
-                msg.innerText = "CAMERA FAIL (Mobile Check): " + e.message;
+                msg.innerText = "CAMERA FAIL (Mobile): " + e.message;
             });
         });
 
-        // --- 折叠面板 ---
-        function toggleInfo() {
-            document.getElementById('info-card').classList.toggle('collapsed');
-        }
+        // --- Toggle UI ---
+        function toggleInfo() { document.getElementById('info-card').classList.toggle('collapsed'); }
+        function toggleNav() { document.getElementById('nav').classList.toggle('collapsed'); }
 
-        // --- 语言 ---
+        // --- Lang ---
         document.querySelectorAll('.lang-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
@@ -278,7 +291,7 @@
             document.getElementById('txt-hand').innerText = t.hud.hand;
         }
 
-        // --- 3D ---
+        // --- 3D Engine ---
         function createTexture() {
             const c = document.createElement('canvas'); c.width=64; c.height=64;
             const ctx = c.getContext('2d');
@@ -294,10 +307,7 @@
             scene.fog = new THREE.FogExp2(0x000000, 0.001);
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
             camera.position.set(0, 100, 200);
-            
-            // 场景组，用于手势旋转整体
-            sceneGroup = new THREE.Group();
-            scene.add(sceneGroup);
+            sceneGroup = new THREE.Group(); scene.add(sceneGroup);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -397,18 +407,13 @@
             uniforms.uTime.value = time;
             TWEEN.update();
 
-            // 1. 弥散插值
             state.disperse += (state.targetDisperse - state.disperse) * 0.08;
             uniforms.uDisperse.value = state.disperse;
             
-            // 2. 手势位置插值 (重心引力)
+            // Gravity
             state.handX += (state.targetHandX - state.handX) * 0.05;
             state.handY += (state.targetHandY - state.handY) * 0.05;
-            
-            // 3. 应用场景倾斜 (Parallax)
-            // 根据手的位置，轻微旋转整个场景组
-            sceneGroup.rotation.x = state.handY * 0.3; // 上下倾斜
-            sceneGroup.rotation.y = state.handX * 0.3; // 左右倾斜
+            sceneGroup.rotation.x = state.handY * 0.3; sceneGroup.rotation.y = state.handX * 0.3;
 
             // HUD
             const t = (LANG[curLang] || LANG.EN).hud;
@@ -418,22 +423,19 @@
             if(state.disperse > 0.5) { bar.style.backgroundColor = '#0f0'; act.innerText = t.act_mist; act.style.color='#0f0'; }
             else { bar.style.backgroundColor = '#444'; act.innerText = t.act_form; act.style.color='#888'; }
             
-            // Debug pos display
             document.getElementById('pos-debug').innerText = `${state.handX.toFixed(2)}, ${state.handY.toFixed(2)}`;
 
             planets.forEach(p => p.pivot.rotation.y += p.speed);
             if (activeIdx !== -1) {
                 const target = planets[activeIdx - 1];
-                if (target) {
-                    const wp = new THREE.Vector3(); target.mg.getWorldPosition(wp); controls.target.copy(wp);
-                }
+                if (target) { const wp = new THREE.Vector3(); target.mg.getWorldPosition(wp); controls.target.copy(wp); }
             }
             controls.update();
             renderer.render(scene, camera);
         }
 
         function createNav() {
-            const n = document.getElementById('nav');
+            const n = document.getElementById('nav-content');
             DB.forEach((d, i) => {
                 const b = document.createElement('button');
                 b.className = 'btn'; b.id = `nav-${i}`; b.innerText = d.name;
@@ -447,8 +449,6 @@
             activeIdx = idx;
             document.querySelectorAll('.btn').forEach((b,i)=>b.classList.toggle('active', i===idx));
             const info = document.getElementById('info-card');
-            
-            // 切换时强制展开
             info.classList.remove('collapsed');
             
             if(idx===0) {
@@ -472,49 +472,29 @@
             }
         }
 
-        // --- HAND TRACKING (MOBILE FIX) ---
         async function initVideo() {
             const video = document.getElementById('input-video');
             const ledCam = document.getElementById('led-cam');
             ledCam.className = "led wait";
-            
             const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-            hands.setOptions({maxNumHands: 1, minDetectionConfidence: 0.5, modelComplexity: 0}); // 移动端优化：模型复杂度设为0
+            hands.setOptions({maxNumHands: 1, minDetectionConfidence: 0.5, modelComplexity: 0});
             
             hands.onResults(res => {
                 const ledH = document.getElementById('led-hand');
                 if(res.multiHandLandmarks.length > 0) {
                     ledH.className = "led on";
                     const lm = res.multiHandLandmarks[0];
-                    
-                    // 1. 弥散检测
                     const w = Math.hypot(lm[8].x - lm[20].x, lm[8].y - lm[20].y);
                     const palm = Math.hypot(lm[0].x - lm[9].x, lm[0].y - lm[9].y);
                     if (w > palm * 1.3) state.targetDisperse = 1.0; else state.targetDisperse = 0.0;
-
-                    // 2. 位置检测 (重心)
-                    // lm.x 0-1, 0.5 is center. 
-                    // Map 0.5 -> 0, 0 -> 1, 1 -> -1 (Mirror effect)
-                    const cx = (lm[0].x + lm[9].x) / 2;
-                    const cy = (lm[0].y + lm[9].y) / 2;
-                    
-                    state.targetHandX = (0.5 - cx) * 2.0; // 左右倾斜
-                    state.targetHandY = (0.5 - cy) * 2.0; // 上下倾斜
-
+                    const cx = (lm[0].x + lm[9].x) / 2; const cy = (lm[0].y + lm[9].y) / 2;
+                    state.targetHandX = (0.5 - cx) * 2.0; state.targetHandY = (0.5 - cy) * 2.0;
                 } else {
                     ledH.className = "led wait";
-                    // 手消失时复位
-                    state.targetDisperse = 0.0;
-                    state.targetHandX = 0;
-                    state.targetHandY = 0;
+                    state.targetDisperse = 0.0; state.targetHandX = 0; state.targetHandY = 0;
                 }
             });
-
-            // 移动端关键参数: facingMode: 'user', width/height ideal
-            const cam = new Camera(video, { 
-                onFrame: async () => { await hands.send({image: video}); },
-                width: 320, height: 240, facingMode: "user"
-            });
+            const cam = new Camera(video, { onFrame: async () => { await hands.send({image: video}); }, width: 320, height: 240, facingMode: "user" });
             await cam.start();
             ledCam.className = "led on";
         }
