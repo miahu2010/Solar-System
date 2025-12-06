@@ -3,47 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Solar Dust XIX - Full Lang</title>
+    <title>Solar Dust XX - Omni-Lingual</title>
     <style>
-        :root{--bg:#000;--p:rgba(20,20,20,0.6);--b:rgba(255,255,255,0.15);--w:#fff}
-        body,html{margin:0;padding:0;width:100%;height:100%;background:var(--bg);overflow:hidden;font-family:"Segoe UI",sans-serif;user-select:none;-webkit-user-select:none}
-        #canvas-container{position:absolute;inset:0;z-index:1}
-        #input-video{position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1}
-        .ui{position:absolute;z-index:10;width:100%;height:100%;pointer-events:none;color:#ccc}
-        .panel{pointer-events:auto;background:var(--p);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--b);border-radius:6px}
+        :root { --bg: #000; --panel: rgba(20,20,20,0.6); --border: rgba(255,255,255,0.15); --accent: #fff; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: "Segoe UI", sans-serif; -webkit-user-select: none; user-select: none; }
         
-        /* 导航 */
-        #nav{position:absolute;top:20px;left:20px;width:130px;max-height:50vh;overflow-y:auto;padding:5px}
-        .btn{display:block;width:100%;background:0;border:0;color:#888;text-align:left;padding:10px 8px;cursor:pointer;font-size:11px;transition:0.2s;border-radius:4px;border-bottom:1px solid rgba(255,255,255,0.05)}
-        .btn.active{color:var(--w);font-weight:700;background:rgba(255,255,255,0.1);border-left:3px solid var(--w)}
-        
-        /* 语言 */
-        #lang-box{position:absolute;top:20px;right:20px;pointer-events:auto;display:flex;background:var(--p);padding:4px;border-radius:20px;border:1px solid var(--b)}
-        .l-btn{background:0;border:0;color:#888;font-size:10px;cursor:pointer;padding:6px 10px;border-radius:16px;position:relative;z-index:2;transition:0.3s}
-        .l-btn.active{color:#000;font-weight:700}
-        #l-slider{position:absolute;top:4px;left:4px;height:calc(100% - 8px);background:var(--w);border-radius:16px;z-index:1;transition:0.3s cubic-bezier(0.25,0.8,0.25,1);width:0}
+        #canvas-container { position: absolute; inset: 0; z-index: 1; }
+        #input-video { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; z-index: -1; }
 
-        /* 仪表盘 */
-        #hud{position:absolute;bottom:30px;left:50%;transform:translate(-50%);width:280px;background:rgba(0,0,0,0.8);border:1px solid var(--b);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;backdrop-filter:blur(5px)}
-        .row{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-family:monospace}
-        .led{width:6px;height:6px;border-radius:50%;background:#333;transition:0.3s}
-        .led.on{background:#0f0;box-shadow:0 0 8px #0f0} .led.wait{background:#ff0}
-        #g-track{width:100%;height:4px;background:#222;border-radius:2px;overflow:hidden;margin-top:5px}
-        #g-fill{width:0%;height:100%;background:#0f0;transition:width 0.1s}
+        /* UI */
+        .ui { position: absolute; z-index: 10; width: 100%; height: 100%; pointer-events: none; color: #ccc; }
+        .panel { pointer-events: auto; background: var(--panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 6px; transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1); }
 
-        /* 详情 */
-        #info{position:absolute;bottom:140px;right:20px;width:220px;padding:15px;transition:0.4s;opacity:0;transform:translateY(20px)}
-        #info.show{opacity:1;transform:translateY(0)}
-        #info.collapsed{height:30px;padding:0 15px;width:auto;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center}
-        #info.collapsed .content{display:none} 
-        .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:monospace;font-size:10px;color:#aaa;margin-top:15px}
-        .item span{display:block;color:#666;font-size:9px;margin-bottom:2px}
-        #toggle{position:absolute;top:8px;right:8px;background:0;border:0;color:#fff;font-size:12px;cursor:pointer}
+        /* 1. 导航 (折叠) */
+        #nav { position: absolute; top: 20px; left: 20px; width: 140px; max-height: 50vh; overflow: hidden; display: flex; flex-direction: column; }
+        #nav.collapsed { width: 36px; height: 36px; background: rgba(0,0,0,0.8); }
+        #nav.collapsed #nav-content { opacity: 0; pointer-events: none; }
+        #nav.collapsed #nav-toggle { transform: rotate(180deg); }
+        #nav-content { padding: 5px; overflow-y: auto; transition: opacity 0.3s; margin-top: 25px; height: 100%; }
+        #nav-toggle { position: absolute; top: 8px; left: 8px; width: 20px; height: 20px; background: none; border: none; color: #fff; cursor: pointer; transition: 0.3s; z-index: 5; }
+        .btn { display: block; width: 100%; background: none; border: none; color: #888; text-align: left; padding: 10px 8px; cursor: pointer; font-size: 12px; transition: 0.2s; border-radius: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .btn:hover { color: #fff; background: rgba(255,255,255,0.05); } .btn.active { color: #fff; font-weight: bold; background: rgba(255,255,255,0.1); border-left: 3px solid #fff; }
+
+        /* 2. 语言 */
+        #lang-container { position: absolute; top: 20px; right: 20px; pointer-events: auto; display: flex; align-items: center; background: var(--panel); padding: 4px; border-radius: 20px; border: 1px solid var(--border); }
+        .lang-btn { background: none; border: none; color: #888; font-size: 10px; cursor: pointer; padding: 6px 10px; border-radius: 16px; position: relative; z-index: 2; transition: 0.3s; }
+        .lang-btn.active { color: #000; font-weight: bold; }
+        #lang-slider { position: absolute; top: 4px; left: 4px; height: calc(100% - 8px); background: #fff; border-radius: 16px; z-index: 1; transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); width: 0; }
+
+        /* 3. 仪表盘 */
+        #hud-container { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 280px; background: rgba(0,0,0,0.8); border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; backdrop-filter: blur(5px); pointer-events: none; }
+        .hud-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-family: monospace; }
+        .status-box { display: flex; gap: 15px; } .indicator { display: flex; align-items: center; gap: 6px; }
+        .led { width: 6px; height: 6px; border-radius: 50%; background: #333; transition: 0.3s; } .led.on { background: #0f0; box-shadow: 0 0 8px #0f0; } .led.wait { background: #ff0; }
+        #gesture-track { width: 100%; height: 4px; background: #222; border-radius: 2px; overflow: hidden; margin-top: 5px; }
+        #gesture-fill { width: 0%; height: 100%; background: #0f0; transition: width 0.1s; }
+
+        /* 4. 详情 (折叠) */
+        #info-card { position: absolute; bottom: 140px; right: 20px; width: 220px; padding: 15px; opacity: 0; transform: translateY(20px); height: auto; overflow: hidden; }
+        #info-card.show { opacity: 1; transform: translateY(0); }
+        #info-card.collapsed { height: 30px; padding: 0 15px; width: 80px; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; }
+        #info-card.collapsed .info-content { opacity: 0; pointer-events: none; } #info-card.collapsed #info-toggle { transform: rotate(180deg); }
+        .info-content { transition: opacity 0.3s; }
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: monospace; font-size: 10px; color: #aaa; margin-top: 15px; }
+        .data-item span { display: block; color: #666; font-size: 9px; margin-bottom: 2px; }
+        #info-toggle { position: absolute; top: 10px; right: 10px; width: 20px; height: 20px; background: none; border: none; color: #fff; cursor: pointer; font-size: 12px; transition: 0.3s; z-index: 5; }
+        #info-toggle-text { display: none; font-size: 10px; letter-spacing: 1px; color: #fff; }
+        #info-card.collapsed #info-toggle-text { display: block; } #info-card.collapsed #info-toggle { top: 6px; right: 5px; }
 
         /* 启动 */
-        #cover{position:fixed;inset:0;background:#000;z-index:100;display:flex;flex-direction:column;justify-content:center;align-items:center;transition:0.8s}
-        #start{margin-top:30px;background:0;border:1px solid #444;color:#fff;padding:12px 50px;letter-spacing:6px;font-size:12px;cursor:pointer;border-radius:4px}
+        #cover { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: 0.8s; }
+        #btn-start { margin-top: 30px; background: transparent; border: 1px solid #444; color: #fff; padding: 12px 50px; letter-spacing: 6px; cursor: pointer; font-size: 12px; border-radius: 4px; transition: 0.3s; }
+        #btn-start:hover { border-color: #fff; background: rgba(255,255,255,0.1); }
     </style>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
@@ -53,50 +66,54 @@
 <body>
 
     <div id="cover">
-        <div style="font-size:24px;letter-spacing:8px;color:#ddd">SOLAR XIX</div>
-        <div style="font-size:10px;color:#666;margin-top:10px;letter-spacing:2px">MULTILINGUAL CORE</div>
-        <button id="start">INITIALIZE</button>
-        <div id="err" style="color:red;font-size:10px;margin-top:10px;display:none"></div>
+        <div style="font-size:24px;letter-spacing:8px;color:#ddd;text-align:center">SOLAR XX</div>
+        <div style="font-size:10px;color:#666;margin-top:10px;letter-spacing:2px">OMNI-LINGUAL</div>
+        <button id="btn-start">INITIALIZE</button>
     </div>
 
     <div class="ui">
-        <div class="panel" id="nav"></div>
+        <div class="panel" id="nav">
+            <button id="nav-toggle" onclick="toggleNav()">◀</button>
+            <div id="nav-content"></div>
+        </div>
         
-        <div id="lang-box">
-            <div id="l-slider"></div>
-            <button class="l-btn active" d-l="CN">CN</button>
-            <button class="l-btn" d-l="EN">EN</button>
-            <button class="l-btn" d-l="DE">DE</button>
-            <button class="l-btn" d-l="FR">FR</button>
-            <button class="l-btn" d-l="ES">ES</button>
-            <button class="l-btn" d-l="IT">IT</button>
+        <div id="lang-container">
+            <div id="lang-slider"></div>
+            <button class="lang-btn active" d-l="CN">CN</button>
+            <button class="lang-btn" d-l="EN">EN</button>
+            <button class="lang-btn" d-l="DE">DE</button>
+            <button class="lang-btn" d-l="FR">FR</button>
+            <button class="lang-btn" d-l="ES">ES</button>
+            <button class="lang-btn" d-l="IT">IT</button>
         </div>
 
-        <div id="hud">
-            <div class="row">
-                <span id="txt-sys">SYSTEM STATUS</span>
-                <span id="pos-debug" style="color:#666">0, 0</span>
+        <button onclick="window.location.href='page2.html'" style="position:absolute;top:70px;right:20px;pointer-events:auto;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:10px;padding:6px 12px;border-radius:15px;cursor:pointer">LINK ➔</button>
+
+        <div id="hud-container">
+            <div class="hud-row" style="border-bottom:1px solid #333;padding-bottom:5px;margin-bottom:5px">
+                <span id="txt-sys" style="color:#666">SYSTEM STATUS</span><span id="pos-debug" style="color:#666">0, 0</span>
             </div>
-            <div class="row">
-                <div style="display:flex;align-items:center;gap:5px"><div class="led" id="led-c"></div><span id="t-cam">CAM</span></div>
-                <div style="display:flex;align-items:center;gap:5px"><div class="led" id="led-h"></div><span id="t-hand">HAND</span></div>
+            <div class="status-box">
+                <div class="indicator"><div class="led" id="led-cam"></div><span id="txt-cam">CAM</span></div>
+                <div class="indicator"><div class="led" id="led-hand"></div><span id="txt-hand">HAND</span></div>
             </div>
-            <div class="row" style="margin-top:5px">
-                <span id="t-mode">MODE:</span><span style="color:#fff;font-weight:700" id="val-act">--</span>
+            <div class="hud-row" style="margin-top:8px">
+                <span class="hud-label">MODE:</span><span class="hud-val" id="val-action">--</span>
             </div>
-            <div id="g-track"><div id="g-fill"></div></div>
+            <div id="gesture-track"><div id="gesture-fill"></div></div>
         </div>
 
-        <div class="panel" id="info">
-            <button id="toggle" onclick="toggleInfo()">-</button>
-            <div class="content">
-                <h1 id="p-n" style="margin:0;font-weight:100;letter-spacing:2px;font-size:24px;color:#fff">EARTH</h1>
-                <span id="p-d" style="font-size:10px;color:#888;text-transform:uppercase;display:block;margin-bottom:15px">Habitable</span>
-                <div class="grid">
-                    <div class="item"><span id="l-dia">DIA</span><div id="v-dia">0</div></div>
-                    <div class="item"><span id="l-tmp">TMP</span><div id="v-tmp">0</div></div>
-                    <div class="item"><span id="l-gra">GRAV</span><div id="v-gra">0</div></div>
-                    <div class="item"><span id="l-day">ROT</span><div id="v-day">0</div></div>
+        <div class="panel" id="info-card">
+            <button id="info-toggle" onclick="toggleInfo()">▼</button>
+            <span id="info-toggle-text">INFO</span>
+            <div class="info-content">
+                <h1 id="p-name" style="margin:0;font-weight:100;letter-spacing:2px;font-size:24px;color:#fff">EARTH</h1>
+                <span id="p-desc" style="font-size:10px;color:#888;text-transform:uppercase;display:block;margin-bottom:15px">Habitable Zone</span>
+                <div class="data-grid">
+                    <div class="data-item"><span id="l-dia">DIA</span><div id="d-dia">0</div></div>
+                    <div class="data-item"><span id="l-tmp">TMP</span><div id="d-tmp">0</div></div>
+                    <div class="data-item"><span id="l-gra">GRAV</span><div id="d-grav">0</div></div>
+                    <div class="data-item"><span id="l-day">ROT</span><div id="d-day">0</div></div>
                 </div>
             </div>
         </div>
@@ -105,67 +122,61 @@
     <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
     <div id="canvas-container"></div>
 
-    <script type="x-shader/x-vertex" id="vs">
-        attribute float size; attribute vec3 mo; attribute float rs;
-        uniform float time; uniform float disp; varying float vA;
+    <script type="x-shader/x-vertex" id="vShader">
+        attribute float size; attribute vec3 mistOffset; attribute float randomScale;
+        uniform float uTime; uniform float uDisperse; varying float vAlpha;
         void main() {
-            vec3 pos = position;
-            vec3 dPos = pos + mo * (1.0 + sin(time*0.5 + rs)*0.2);
-            dPos.x += sin(time*0.3 + rs*10.0)*3.0; dPos.y += cos(time*0.2 + rs*20.0)*3.0; dPos.z += sin(time*0.4 + rs*30.0)*3.0;
-            vec3 fPos = mix(pos, dPos, disp);
-            fPos *= 1.0 + sin(time*2.0 + rs*10.0)*(0.05*(1.0-disp));
+            vec3 sPos = position;
+            vec3 mPos = sPos + mistOffset * (1.0 + sin(uTime*0.5 + randomScale)*0.2);
+            mPos.x += sin(uTime*0.3 + randomScale*10.0)*3.0; mPos.y += cos(uTime*0.2 + randomScale*20.0)*3.0; mPos.z += sin(uTime*0.4 + randomScale*30.0)*3.0;
+            vec3 fPos = mix(sPos, mPos, uDisperse);
+            fPos *= 1.0 + sin(uTime*2.0 + randomScale*10.0)*(0.05*(1.0-uDisperse));
             vec4 mv = modelViewMatrix * vec4(fPos, 1.0);
-            gl_PointSize = size * (1.0 + disp * 2.5) * (200.0 / -mv.z);
+            gl_PointSize = size * (1.0 + uDisperse * 2.5) * (200.0 / -mv.z);
             gl_Position = projectionMatrix * mv;
-            vA = 0.9 - disp * 0.6;
+            vAlpha = 0.9 - uDisperse * 0.6;
         }
     </script>
-    <script type="x-shader/x-fragment" id="fs">
-        uniform sampler2D tex; uniform vec3 col; varying float vA;
+    <script type="x-shader/x-fragment" id="fShader">
+        uniform sampler2D uTexture; uniform vec3 uColor; varying float vAlpha;
         void main() {
-            vec4 t = texture2D(tex, gl_PointCoord);
+            vec4 t = texture2D(uTexture, gl_PointCoord);
             if(t.a < 0.05) discard;
-            gl_FragColor = vec4(col, vA * t.r); 
+            gl_FragColor = vec4(uColor, vAlpha * t.r); 
         }
     </script>
 
     <script>
-        // --- 完整的多语言字典 (Solar Dust XIX) ---
+        // --- 完整多语言字典 ---
         const LANG = {
             CN: {
-                sys: "星系全览", sun: "太阳", mer: "水星", ven: "金星", ear: "地球", mar: "火星", jup: "木星", sat: "土星", ura: "天王星", nep: "海王星",
+                lbl: { dia:"直径", tmp:"温度", gra:"重力", day:"自转" }, sys: "星系全览", sun: "太阳", mer: "水星", ven: "金星", ear: "地球", mar: "火星", jup: "木星", sat: "土星", ura: "天王星", nep: "海王星",
                 desc: { sun: "主序星", mer: "岩石世界", ven: "浓厚大气", ear: "蓝色星球", mar: "红色沙漠", jup: "气体巨星", sat: "光环行星", ura: "冰巨星", nep: "蓝色冰球" },
-                lbl: { dia: "直径", tmp: "温度", gra: "重力", day: "自转" },
                 hud: { st: "系统状态", cam: "相机", hand: "手势", m_solid: "实体", m_mist: "星云" }
             },
             EN: {
-                sys: "SYSTEM VIEW", sun: "SUN", mer: "MERCURY", ven: "VENUS", ear: "EARTH", mar: "MARS", jup: "JUPITER", sat: "SATURN", ura: "URANUS", nep: "NEPTUNE",
+                lbl: { dia:"DIAMETER", tmp:"TEMP", gra:"GRAVITY", day:"ROTATION" }, sys: "SYSTEM VIEW", sun: "SUN", mer: "MERCURY", ven: "VENUS", ear: "EARTH", mar: "MARS", jup: "JUPITER", sat: "SATURN", ura: "URANUS", nep: "NEPTUNE",
                 desc: { sun: "Main Sequence", mer: "Rocky World", ven: "Thick Cloud", ear: "Blue Marble", mar: "Red Desert", jup: "Gas Giant", sat: "Ringed Jewel", ura: "Ice Giant", nep: "Deep Blue" },
-                lbl: { dia: "DIAMETER", tmp: "TEMP", gra: "GRAVITY", day: "DAY" },
                 hud: { st: "SYSTEM STATUS", cam: "CAM", hand: "HAND", m_solid: "SOLID", m_mist: "MIST" }
             },
             DE: {
-                sys: "SYSTEM", sun: "SONNE", mer: "MERKUR", ven: "VENUS", ear: "ERDE", mar: "MARS", jup: "JUPITER", sat: "SATURN", ura: "URANUS", nep: "NEPTUN",
+                lbl: { dia:"DURCHMESSER", tmp:"TEMP", gra:"GRAVITATION", day:"ROTATION" }, sys: "SYSTEM", sun: "SONNE", mer: "MERKUR", ven: "VENUS", ear: "ERDE", mar: "MARS", jup: "JUPITER", sat: "SATURN", ura: "URANUS", nep: "NEPTUN",
                 desc: { sun: "Hauptreihe", mer: "Felsplanet", ven: "Dichte Wolken", ear: "Der Blaue Planet", mar: "Rote Wüste", jup: "Gasriese", sat: "Ringplanet", ura: "Eisriese", nep: "Blauer Riese" },
-                lbl: { dia: "DURCHMESSER", tmp: "TEMP", gra: "GRAVITATION", day: "TAG" },
                 hud: { st: "STATUS", cam: "KAMERA", hand: "HAND", m_solid: "FEST", m_mist: "NEBEL" }
             },
             FR: {
-                sys: "SYSTÈME", sun: "SOLEIL", mer: "MERCURE", ven: "VÉNUS", ear: "TERRE", mar: "MARS", jup: "JUPITER", sat: "SATURNE", ura: "URANUS", nep: "NEPTUNE",
+                lbl: { dia:"DIAMÈTRE", tmp:"TEMP", gra:"GRAVITÉ", day:"ROTATION" }, sys: "SYSTÈME", sun: "SOLEIL", mer: "MERCURE", ven: "VÉNUS", ear: "TERRE", mar: "MARS", jup: "JUPITER", sat: "SATURNE", ura: "URANUS", nep: "NEPTUNE",
                 desc: { sun: "Séquence Principale", mer: "Monde Rocheux", ven: "Nuages Épais", ear: "Planète Bleue", mar: "Désert Rouge", jup: "Géante Gazeuse", sat: "Planète à Anneaux", ura: "Géante de Glace", nep: "Monde Bleu" },
-                lbl: { dia: "DIAMÈTRE", tmp: "TEMP", gra: "GRAVITÉ", day: "JOUR" },
                 hud: { st: "ÉTAT", cam: "CAMÉRA", hand: "MAIN", m_solid: "SOLIDE", m_mist: "NÉBULEUSE" }
             },
             ES: {
-                sys: "SISTEMA", sun: "SOL", mer: "MERCURIO", ven: "VENUS", ear: "TIERRA", mar: "MARTE", jup: "JÚPITER", sat: "SATURNO", ura: "URANO", nep: "NEPTUNO",
+                lbl: { dia:"DIÁMETRO", tmp:"TEMP", gra:"GRAVEDAD", day:"ROTACIÓN" }, sys: "SISTEMA", sun: "SOL", mer: "MERCURIO", ven: "VENUS", ear: "TIERRA", mar: "MARTE", jup: "JÚPITER", sat: "SATURNO", ura: "URANO", nep: "NEPTUNO",
                 desc: { sun: "Secuencia Principal", mer: "Mundo Rocoso", ven: "Nubes Espesas", ear: "Planeta Azul", mar: "Desierto Rojo", jup: "Gigante Gaseoso", sat: "Planeta Anillado", ura: "Gigante de Hielo", nep: "Mundo Azul" },
-                lbl: { dia: "DIÁMETRO", tmp: "TEMP", gra: "GRAVEDAD", day: "DÍA" },
                 hud: { st: "ESTADO", cam: "CÁMARA", hand: "MANO", m_solid: "SÓLIDO", m_mist: "NIEBLA" }
             },
             IT: {
-                sys: "SISTEMA", sun: "SOLE", mer: "MERCURIO", ven: "VENERE", ear: "TERRA", mar: "MARTE", jup: "GIOVE", sat: "SATURNO", ura: "URANO", nep: "NETTUNO",
+                lbl: { dia:"DIAMETRO", tmp:"TEMP", gra:"GRAVITÀ", day:"ROTAZIONE" }, sys: "SISTEMA", sun: "SOLE", mer: "MERCURIO", ven: "VENERE", ear: "TERRA", mar: "MARTE", jup: "GIOVE", sat: "SATURNO", ura: "URANO", nep: "NETTUNO",
                 desc: { sun: "Sequenza Principale", mer: "Mondo Roccioso", ven: "Nubi Dense", ear: "Pianeta Blu", mar: "Deserto Rosso", jup: "Gigante Gassoso", sat: "Pianeta Anellato", ura: "Gigante Ghiacciato", nep: "Mondo Blu" },
-                lbl: { dia: "DIAMETRO", tmp: "TEMP", gra: "GRAVITÀ", day: "GIORNO" },
                 hud: { st: "STATO", cam: "CAMERA", hand: "MANO", m_solid: "SOLIDO", m_mist: "NEBBIA" }
             }
         };
@@ -184,9 +195,8 @@
         ];
 
         let curLang='CN', activeIdx=-1, state={disp:0, tDisp:0, hX:0, hY:0, tHX:0, tHY:0};
-        let scene, cam, ren, ctr, uni, planets=[];
+        let scene, cam, ren, ctr, uni, planets=[], sGrp;
 
-        // --- Core ---
         document.getElementById('start').onclick = () => {
             document.getElementById('start').innerText = "CONNECTING...";
             initVid().then(() => {
@@ -194,13 +204,11 @@
                 setTimeout(()=>document.getElementById('cover').style.display='none',800);
                 init3D(); upLang();
                 const b = document.querySelector('.l-btn[d-l="CN"]'); if(b) slide(b);
-            }).catch(e=>{
-                document.getElementById('err').style.display='block';
-                document.getElementById('err').innerText = e.message;
             });
         };
 
         function toggleInfo() { document.getElementById('info').classList.toggle('collapsed'); }
+        function toggleNav() { document.getElementById('nav').classList.toggle('collapsed'); }
 
         document.querySelectorAll('.l-btn').forEach(b => {
             b.onclick = (e) => {
@@ -217,10 +225,10 @@
 
         function upLang() {
             const t = LANG[curLang];
-            DB.forEach((d,i) => { const b=document.getElementById(`n-${i}`); if(b) b.innerText = t[d.id]; });
+            DB.forEach((d,i) => { const b=document.getElementById(`n-${i}`); if(b) b.innerText = t[d.id] || d.name; });
             if(activeIdx!==-1) {
                 const d = DB[activeIdx];
-                document.getElementById('p-n').innerText = t[d.id].toUpperCase();
+                document.getElementById('p-n').innerText = (t[d.id] || d.name).toUpperCase();
                 document.getElementById('p-d').innerText = t.desc[d.id];
                 document.getElementById('l-dia').innerText = t.lbl.dia;
                 document.getElementById('l-tmp').innerText = t.lbl.tmp;
@@ -230,7 +238,6 @@
             document.getElementById('txt-sys').innerText = t.hud.st;
             document.getElementById('t-cam').innerText = t.hud.cam;
             document.getElementById('t-hand').innerText = t.hud.hand;
-            document.getElementById('t-mode').innerText = "MODE:";
             const act = document.getElementById('val-act');
             act.innerText = state.disp > 0.5 ? t.hud.m_mist : t.hud.m_solid;
         }
@@ -252,24 +259,22 @@
             ctr = new THREE.OrbitControls(cam, ren.domElement);
             ctr.enableDamping=true; ctr.enablePan=false; ctr.autoRotate=true; ctr.autoRotateSpeed=0.3; ctr.maxDistance=600;
             
+            sGrp = new THREE.Group(); scene.add(sGrp);
             uni = { time: {value:0}, disp: {value:0}, tex: {value:getTex()} };
             
             // Stars
             const gS=new THREE.BufferGeometry(), pS=[];
             for(let i=0;i<3000;i++){ const r=600+Math.random()*600, th=Math.random()*6.28, ph=Math.acos(Math.random()*2-1); pS.push(r*Math.sin(ph)*Math.cos(th), r*Math.sin(ph)*Math.sin(th), r*Math.cos(ph)); }
             gS.setAttribute('position', new THREE.Float32BufferAttribute(pS,3));
-            scene.add(new THREE.Points(gS, new THREE.PointsMaterial({color:0x444444, size:2, transparent:true, opacity:0.6})));
+            sGrp.add(new THREE.Points(gS, new THREE.PointsMaterial({color:0x444444, size:2, transparent:true, opacity:0.6})));
 
-            const grp = new THREE.Group(); scene.add(grp); // Gravity group
-
-            // Planets
-            const n = document.getElementById('nav');
+            const n = document.getElementById('nav-content');
             DB.forEach((d, i) => {
                 const b = document.createElement('button'); b.className='btn'; b.id=`n-${i}`; b.innerText=LANG.CN[d.id];
                 if(i===0) b.classList.add('active'); b.onclick=()=>focus(i); n.appendChild(b);
                 
                 if(i===0) return;
-                const piv = new THREE.Group(); grp.add(piv);
+                const piv = new THREE.Group(); sGrp.add(piv);
                 const mg = new THREE.Group(); piv.add(mg);
                 
                 addL(mg, d, d.r*0.7, d.id==="sun"?2000:800, 1.2, 1.0);
@@ -281,12 +286,12 @@
                 if(d.d>0) {
                     const pts=[]; for(let k=0;k<=128;k++){ const a=(k/128)*6.28; pts.push(new THREE.Vector3(Math.cos(a)*d.d,0,Math.sin(a)*d.d)); }
                     const lG=new THREE.BufferGeometry().setFromPoints(pts);
-                    grp.add(new THREE.LineLoop(lG, new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.15, blending:THREE.AdditiveBlending})));
+                    sGrp.add(new THREE.LineLoop(lG, new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.15, blending:THREE.AdditiveBlending})));
                 }
                 planets.push({piv, mg, s:d.s*0.003, d});
             });
 
-            animate(grp);
+            animate();
             window.onresize = () => { cam.aspect=window.innerWidth/window.innerHeight; cam.updateProjectionMatrix(); ren.setSize(window.innerWidth, window.innerHeight); };
         }
 
@@ -325,14 +330,15 @@
             })));
         }
 
-        function animate(grp) {
-            requestAnimationFrame(()=>animate(grp));
+        function animate() {
+            requestAnimationFrame(animate);
             const t = performance.now()*0.001; uni.time.value = t; TWEEN.update();
             
             state.disp += (state.tDisp - state.disp) * 0.08; uni.disp.value = state.disp;
             state.hX += (state.tHX - state.hX) * 0.05; state.hY += (state.tHY - state.hY) * 0.05;
             
-            grp.rotation.x = state.hY * 0.3; grp.rotation.y = state.hX * 0.3; // Gravity
+            // Gravity Rotation
+            if(sGrp) { sGrp.rotation.x = state.hY * 0.3; sGrp.rotation.y = state.hX * 0.3; }
             
             // HUD
             document.getElementById('g-fill').style.width = (state.disp*100)+'%';
@@ -352,6 +358,7 @@
         function focus(i) {
             activeIdx=i; document.querySelectorAll('.btn').forEach((b,k)=>b.classList.toggle('active',k===i));
             const inf=document.getElementById('info');
+            info.classList.remove('collapsed');
             if(i===0) {
                 activeIdx=-1; inf.classList.remove('show'); ctr.autoRotate=true;
                 new TWEEN.Tween(cam.position).to({x:0,y:100,z:200},1500).easing(TWEEN.Easing.Cubic.Out).start();
@@ -371,7 +378,7 @@
         async function initVid() {
             const v = document.getElementById('input-video');
             const h = new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-            h.setOptions({maxNumHands:1, minDetectionConfidence:0.5});
+            h.setOptions({maxNumHands:1, minDetectionConfidence:0.5, modelComplexity:0});
             h.onResults(res => {
                 const led=document.getElementById('led-h');
                 if(res.multiHandLandmarks.length>0) {
